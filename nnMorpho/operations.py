@@ -6,6 +6,7 @@ import warnings
 
 
 INF = 1e6
+NoneType = type(None)
 
 
 def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = None):
@@ -42,7 +43,7 @@ def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), bo
     assert type(image) == torch.Tensor
     assert type(strel) == torch.Tensor
     assert type(origin) == tuple
-    assert type(border_value) in [int, float]
+    assert type(border_value) in [int, float, NoneType]
 
     # Check strel dim
     if not strel.ndim == 2:
@@ -118,7 +119,7 @@ def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), b
     assert type(image) == torch.Tensor
     assert type(strel) == torch.Tensor
     assert type(origin) == tuple
-    assert type(border_value) in [int, float]
+    assert type(border_value) in [int, float, NoneType]
 
     # Check strel dim
     if not strel.ndim == 2:
@@ -230,8 +231,8 @@ if __name__ == '__main__':
 
     log.info('Running test of basic operations...')
 
-    _image = imread(join('images', 'lena.png'))
-    _image = to_greyscale(np.array(_image))
+    _image = imread(join('..', 'images', 'lena.png'))
+    _image = to_greyscale(np.array(_image), warn=False)
 
     plt.figure()
     plt.imshow(_image, cmap='gray', vmin=0, vmax=255)

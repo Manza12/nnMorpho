@@ -1,5 +1,6 @@
 # PyCharm folder
-.idea
+nnMorpho/.idea
+nnMorpho/__pycache__
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
