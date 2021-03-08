@@ -5,11 +5,15 @@ from typing import Union
 import warnings
 
 
+# Infinite for padding images
 INF = 1e6
+
+# Types
 NoneType = type(None)
+BorderType = Union[int, float, NoneType]
 
 
-def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = None):
+def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         erosion of an image by a structural element.
 
@@ -85,7 +89,7 @@ def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), bo
     return torch.reshape(result, image.shape)
 
 
-def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = None):
+def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         dilation of an image by a structural element.
 
@@ -165,7 +169,7 @@ def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), b
     return torch.reshape(result, image.shape)
 
 
-def opening(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = None):
+def opening(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
     """ Opening is one of the derived operations of Mathematical Morphology: it consists on eroding an image and then
         dilating it. This function computes the grayscale opening of an image by a structural element.
 
@@ -193,7 +197,7 @@ def opening(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), bo
     return dilation(erosion(image, strel, origin, border_value), strel, origin, border_value)
 
 
-def closing(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = None):
+def closing(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
     """ Closing is one of the derived operations of Mathematical Morphology: it consists on dilating an image and then
         eroding it. This function computes the grayscale closing of an image by a structural element.
 
