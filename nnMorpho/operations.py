@@ -73,17 +73,17 @@ def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), bo
 
     # Unfold the image according to the dimension
     if image.ndim == 2:
-        image_extended = f.unfold(image_pad.unsqueeze(0).unsqueeze(0), kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad.unsqueeze(0).unsqueeze(0), kernel_size=strel.shape)
     elif image.ndim == 3:
-        image_extended = f.unfold(image_pad.unsqueeze(0), kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad.unsqueeze(0), kernel_size=strel.shape)
     elif image.ndim == 4:
-        image_extended = f.unfold(image_pad, kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad, kernel_size=strel.shape)
     else:
         raise NotImplementedError('Currently nnMorpho only supports 4D tensors of the type (B, C, H, W).')
 
     # Compute infimum
     strel_flatten = torch.flatten(strel).unsqueeze(0).unsqueeze(-1)
-    differences = image_extended - strel_flatten
+    differences = image_unfolded - strel_flatten
     result, _ = differences.min(dim=1)
 
     return torch.reshape(result, image.shape)
@@ -150,20 +150,20 @@ def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), b
 
     # Unfold the image according to the dimension
     if image.ndim == 2:
-        image_extended = f.unfold(image_pad.unsqueeze(0).unsqueeze(0), kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad.unsqueeze(0).unsqueeze(0), kernel_size=strel.shape)
     elif image.ndim == 3:
-        image_extended = f.unfold(image_pad.unsqueeze(0), kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad.unsqueeze(0), kernel_size=strel.shape)
     elif image.ndim == 4:
-        image_extended = f.unfold(image_pad, kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad, kernel_size=strel.shape)
     elif image.ndim == 1:
-        image_extended = f.unfold(image_pad.unsqueeze(0).unsqueeze(0).unsqueeze(0), kernel_size=strel.shape)
+        image_unfolded = f.unfold(image_pad.unsqueeze(0).unsqueeze(0).unsqueeze(0), kernel_size=strel.shape)
     else:
         raise NotImplementedError('Currently nnMorpho only supports 4D tensors of the type (B, C, H, W).')
 
     # Compute supremum
     strel_flip = torch.flip(strel, (0, 1))
     strel_flatten = torch.flatten(strel_flip).unsqueeze(0).unsqueeze(-1)
-    sums = image_extended + strel_flatten
+    sums = image_unfolded + strel_flatten
     result, _ = sums.max(dim=1)
 
     return torch.reshape(result, image.shape)
