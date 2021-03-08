@@ -157,7 +157,8 @@ def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), b
         raise NotImplementedError('Currently nnMorpho only supports 4D tensors of the type (B, C, H, W).')
 
     # Compute supremum
-    strel_flatten = torch.flatten(strel).unsqueeze(0).unsqueeze(-1)
+    strel_flip = torch.flip(strel, (0, 1))
+    strel_flatten = torch.flatten(strel_flip).unsqueeze(0).unsqueeze(-1)
     sums = image_extended + strel_flatten
     result, _ = sums.max(dim=1)
 
