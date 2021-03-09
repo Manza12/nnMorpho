@@ -2,12 +2,11 @@ import torch
 from torch import Tensor
 from torch.nn import Module
 import torch.nn.functional as f
-from typing import Union
 import numpy as np
 
 
 EPS = 1e-6
-INF = 1e6
+INF = 1e3
 
 
 class Erosion(Module):
@@ -39,11 +38,10 @@ class Erosion(Module):
 
 
 class Dilation(Module):
-    def __init__(self, shape: tuple, origin: tuple, alpha: Union[int, float], border_value=-INF):
+    def __init__(self, shape: tuple, origin: tuple, border_value=-INF):
         super(Dilation, self).__init__()
         self.shape = shape
         self.origin = origin
-        self.alpha = alpha
         self.border_value = border_value
         self.structural_element = torch.nn.Parameter(torch.randn(shape))
         self.structural_element.requires_grad = True
@@ -66,8 +64,6 @@ class Dilation(Module):
 
         # Compute the alpha soft-max
         maximum, _ = torch.max(sums, 1)
-        # soft_max_alpha = \
-        #     torch.sum(sums * torch.exp(self.alpha * sums), dim=1) / torch.sum(torch.exp(self.alpha * sums), dim=1)
 
         result = torch.reshape(maximum, image.shape)
 
@@ -99,20 +95,27 @@ if __name__ == '__main__':
     plot_image(x, 'Original image')
 
     strel = torch.zeros((5, 5), device='cuda:0')
+    strel[0, 0] = - INF
+    strel[0, 4] = - INF
+    strel[4, 0] = - INF
+    strel[4, 4] = - INF
+    strel[1:4, 1:4] = 100
+    strel[2, 2] = 200
+
+    plot_image(strel, 'Original structural element')
 
     y = dilation(x, strel, origin=(2, 2), border_value=-INF)
     plot_image(y, 'Target image')
 
     # Construct our model by instantiating the class defined above
-    alpha = 5
-    model = Dilation((15, 15), (7, 7), alpha).to('cuda:0')
+    model = Dilation((15, 15), (7, 7)).to('cuda:0')
 
     # Construct our loss function and an Optimizer. The call to model.parameters()
     # in the SGD constructor will contain the learnable parameters of the two
     # nn.Linear modules which are members of the model.
     criterion = torch.nn.MSELoss(reduction='mean')
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-1)
-    for t in range(20000):
+    for t in range(10000):
         # Forward pass: Compute predicted y by passing x to the model
         y_predicted = model(x)
 
@@ -121,8 +124,8 @@ if __name__ == '__main__':
 
         if t % 1000 == 0:
             print(t, round(np.log10(loss.item())))
-            # plot_image(y_predicted, 'Predicted image at iteration %r' % t)
-            # plot_image(model.structural_element, 'Structural element')
+            plot_image(y_predicted, 'Predicted image at iteration %r' % t)
+            plot_image(model.structural_element, 'Structural element')
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
