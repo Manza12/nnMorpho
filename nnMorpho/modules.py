@@ -1,4 +1,5 @@
 from parameters import *
+from operations import _erosion, _dilation, _opening, _closing
 
 
 class Erosion(Module):
@@ -11,30 +12,13 @@ class Erosion(Module):
         self.structural_element.requires_grad = True
 
     def forward(self, image: Tensor) -> Tensor:
-        # Pad image
-        image_pad = f.pad(image, [self.origin[0], self.shape[0] - self.origin[0] - 1,
-                                  self.origin[1], self.shape[1] - self.origin[1] - 1],
-                          mode='constant', value=self.border_value)
-
-        # Unfold the image according to the dimension
-        image_unfolded = f.unfold(image_pad.unsqueeze(0).unsqueeze(0), kernel_size=self.shape)
-
-        # Compute the differences
-        strel_flatten = torch.flatten(self.structural_element).unsqueeze(0).unsqueeze(-1)
-        differences = image_unfolded - strel_flatten
-
-        # Compute the min
-        minimum, _ = torch.min(differences, 1)
-
-        # Reshape
-        result = torch.reshape(minimum, image.shape)
-
-        return result
+        return _erosion(image, self.structural_element, self.origin, self.border_value)
 
 
 class Dilation(Module):
     def __init__(self, shape: tuple, origin: tuple, border_value=-INF):
         super(Dilation, self).__init__()
+        # Todo: check parameters
         self.shape = shape
         self.origin = origin
         self.border_value = border_value
@@ -42,61 +26,99 @@ class Dilation(Module):
         self.structural_element.requires_grad = True
 
     def forward(self, image: Tensor) -> Tensor:
-        # Pad image
-        image_pad = f.pad(image, [self.origin[0], self.shape[0] - self.origin[0] - 1,
-                                  self.origin[1], self.shape[1] - self.origin[1] - 1],
-                          mode='constant', value=self.border_value)
+        return _dilation(image, self.structural_element, self.origin, self.border_value)
 
-        # Unfold the image according to the dimension
-        image_unfolded = f.unfold(image_pad.unsqueeze(0).unsqueeze(0), kernel_size=self.shape)
 
-        # Flip structural element
-        structural_element = torch.flip(self.structural_element, (0, 1))
+class Opening(Module):
+    def __init__(self, shape: tuple, origin: tuple, border_value=-INF):
+        super(Opening, self).__init__()
+        self.shape = shape
+        self.origin = origin
+        self.border_value = border_value
+        self.structural_element = torch.nn.Parameter(torch.randn(shape))
+        self.structural_element.requires_grad = True
 
-        # Compute the sums
-        strel_flatten = torch.flatten(structural_element).unsqueeze(0).unsqueeze(-1)
-        sums = image_unfolded + strel_flatten
+    def forward(self, image: Tensor) -> Tensor:
+        return _dilation(
+            _erosion(image, self.structural_element, self.origin, self.border_value),
+            self.structural_element, self.origin, self.border_value)
 
-        # Compute the max
-        maximum, _ = torch.max(sums, 1)
 
-        # Reshape
-        result = torch.reshape(maximum, image.shape)
+class Closing(Module):
+    def __init__(self, shape: tuple, origin: tuple, border_value=-INF):
+        super(Closing, self).__init__()
+        self.shape = shape
+        self.origin = origin
+        self.border_value = border_value
+        self.structural_element = torch.nn.Parameter(torch.randn(shape))
+        self.structural_element.requires_grad = True
 
-        return result
+    def forward(self, image: Tensor) -> Tensor:
+        return _erosion(
+            _dilation(image, self.structural_element, self.origin, self.border_value),
+            self.structural_element, self.origin, self.border_value)
 
 
 if __name__ == '__main__':
-    from operations import dilation
     from utils import plot_image, get_strel
+
+    # Operation
+    # Currently dilation is the single one that works great:
+    #   - Erosion works for flat structural element
+    #   - For the opening, the model uses the trick of putting a Dirac delta as structural element
+    #   - The closing goes crazy
+    operation_str = 'dilation'  # 'dilation', 'erosion', 'opening', 'closing'
+
+    if operation_str == 'erosion':
+        operation = _erosion
+        model_operation = Erosion
+    elif operation_str == 'dilation':
+        operation = _dilation
+        model_operation = Dilation
+    elif operation_str == 'opening':
+        operation = _opening
+        model_operation = Opening
+    elif operation_str == 'closing':
+        operation = _closing
+        model_operation = Closing
+    else:
+        raise ValueError('Invalid operation_str.')
+
+    # Structural element
+    structural_element_form = 'rake'  # 'square', 'cross', 'rake'
+    structural_element_shape = (7, 7)
+    structural_element = get_strel(structural_element_form, structural_element_shape)
+
+    _origin = (structural_element_shape[0] // 2, structural_element_shape[1] // 2)
+
+    plot_image(structural_element, 'Structural element', origin=_origin)
 
     # Original image
     image_shape = (64, 64)
     x = torch.multiply(torch.ones(image_shape, device='cuda:0'), -INF)
 
-    n_points = 20
+    n_points = 25
+    range_points = [-100, 300]
     points = list()
     for i in range(n_points):
         point_tensor = np.random.rand(2) * 64
         point = point_tensor.astype(int)
-        x[point[0], point[1]] = 0
+        x[point[0], point[1]] = torch.rand(1) * (range_points[1] - range_points[0]) + range_points[0]
         points.append(point)
+
+    if operation_str == 'erosion' or operation_str == 'opening':
+        x = _dilation(x, structural_element, _origin)
 
     plot_image(x, 'Original image')
 
-    # Structural element
-    strel_form = 'square'  # 'cross', 'rake'
-    strel_shape = (5, 5)
-    strel = get_strel(strel_form, strel_shape)
-
-    plot_image(strel, 'Structural element')
-
     # Target image
-    y = dilation(x, strel, origin=(0, 0), border_value=-INF)
+    y = operation(x, structural_element, origin=_origin, border_value=-INF)
+    # if operation_str == 'erosion' or operation_str == 'opening':
+    #     y = f.threshold(y, -INF / 2, -INF, True)
     plot_image(y, 'Target image')
 
     # Model
-    model = Dilation((15, 15), (7, 7)).to('cuda:0')
+    model = model_operation((15, 15), (7, 7)).to('cuda:0')
 
     # Loss function
     criterion = torch.nn.MSELoss(reduction='mean')
@@ -105,9 +127,9 @@ if __name__ == '__main__':
     optimizer = torch.optim.SGD(model.parameters(), lr=1e-1)
 
     # Learning loop
-    iterations = 10000
+    iterations = 20000
     iterations_per_step = 1000
-    plot_steps = True
+    plot_steps = False
     for t in range(iterations):
         # Forward pass: Compute predicted y by passing x to the model
         y_predicted = model(x)
@@ -116,7 +138,7 @@ if __name__ == '__main__':
         loss = criterion(y_predicted, y)
 
         if t % iterations_per_step == 0:
-            print(t, round(np.log10(loss.item())))
+            print(t, round(loss.item(), 2))
             if plot_steps:
                 plot_image(y_predicted, 'Predicted image at iteration %r' % t)
                 plot_image(model.structural_element, 'Learned structural element')
@@ -127,7 +149,10 @@ if __name__ == '__main__':
         optimizer.step()
 
     y_predicted = model(x)
+    loss = criterion(y_predicted, y)
+    print('Loss:', round(loss.item(), 2))
     plot_image(x, 'Original image', show=False)
-    plot_image(y_predicted, 'Predicted image', show=False)
     plot_image(y, 'Target image', show=False)
+    plot_image(y_predicted, 'Predicted image', show=False)
+    plot_image(structural_element, 'Original structural element', show=False)
     plot_image(model.structural_element, 'Learned structural element')

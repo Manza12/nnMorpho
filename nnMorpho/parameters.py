@@ -13,9 +13,18 @@ from typing import Union
 packages = [logging, sys, warnings, torch, np, f]
 classes = [Tensor, Module, Union]
 
+# Types
+NoneType = type(None)
+BorderType = Union[int, float, NoneType]
+
+# Constants
 INF = 1e3
 EPS = 1e-6
 
+# Device
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# Configuration of the log
 logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",

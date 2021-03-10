@@ -5,7 +5,7 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
     assert len(shape) == 2, 'Length of shape should be 2.'
 
     if form == 'square':
-        return torch.zeros(shape, device='cuda:0')
+        return torch.zeros(shape, device=DEVICE)
     elif form == 'cross':
         try:
             increment = kwargs['increment']
@@ -13,7 +13,7 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
             logging.debug('Parameter "increment" does not exist: setting increment to 100.')
             increment = 100
 
-        strel = torch.multiply(torch.ones(shape), -INF)
+        strel = torch.multiply(torch.ones(shape, device=DEVICE), -INF)
         for i in range(shape[0] // 2):
             strel[i: -i, :] = i * increment
         for j in range(shape[1] // 2):
@@ -38,11 +38,11 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
             logging.debug('Parameter "increment" does not exist: setting increment to 100.')
             increment = 100
 
-        strel = torch.multiply(torch.ones(shape), -INF)
-        strel[0, :] = increment
+        strel = torch.multiply(torch.ones(shape, device=DEVICE), -INF)
+        strel[:, 0] = increment
 
         for i in range(shape[0] // 2):
-            strel[:, 2 * i] = i * increment
+            strel[2 * i, :] = i * increment
 
         return strel
 
@@ -50,11 +50,13 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
         raise ValueError('Invalid parameter form.\nAllowed parameters are: "square", "cross" and "rake".')
 
 
-def plot_image(tensor: torch.Tensor, title, show=True):
+def plot_image(tensor: torch.Tensor, title, origin=None, show=True):
     import matplotlib.pyplot as plt
     plt.figure()
     plt.imshow(tensor.cpu().detach().numpy(), cmap='hot')
     plt.title(title)
+    if origin:
+        plt.scatter(origin[0], origin[1], marker='x', c='r')
     if show:
         plt.show()
 
