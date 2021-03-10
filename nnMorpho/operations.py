@@ -1,9 +1,4 @@
-import numpy as np
-import torch
-from torch.nn import functional as f
-from typing import Union
-import warnings
-
+from parameters import *
 
 # Infinite for padding images
 INF = 1e6
@@ -81,7 +76,7 @@ def erosion(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), bo
     else:
         raise NotImplementedError('Currently nnMorpho only supports 4D tensors of the type (B, C, H, W).')
 
-    # Compute infimum
+    # Compute minimum
     strel_flatten = torch.flatten(strel).unsqueeze(0).unsqueeze(-1)
     differences = image_unfolded - strel_flatten
     result, _ = differences.min(dim=1)
@@ -160,7 +155,7 @@ def dilation(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), b
     else:
         raise NotImplementedError('Currently nnMorpho only supports 4D tensors of the type (B, C, H, W).')
 
-    # Compute supremum
+    # Compute maximum
     strel_flip = torch.flip(strel, (0, 1))
     strel_flatten = torch.flatten(strel_flip).unsqueeze(0).unsqueeze(-1)
     sums = image_unfolded + strel_flatten
@@ -227,14 +222,11 @@ def closing(image: torch.Tensor, strel: torch.Tensor, origin: tuple = (0, 0), bo
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from utils import configure_logger
     from imageio import imread
     from os.path import join
     from utils import to_greyscale
 
-    log = configure_logger()
-
-    log.info('Running test of basic operations...')
+    logging.info('Running test of basic operations...')
 
     _image = imread(join('..', 'images', 'lena.png'))
     _image = to_greyscale(np.array(_image), warn=False)
@@ -254,7 +246,7 @@ if __name__ == '__main__':
     plt.title('Structural element\n(red cross is the origin)')
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    log.info('PyTorch device: ' + device.type + ':%r' % device.index)
+    logging.info('PyTorch device: ' + device.type + ':%r' % device.index)
 
     _image_tensor = torch.tensor(_image, device=device)
     _strel_tensor = torch.tensor(_strel, device=device)
