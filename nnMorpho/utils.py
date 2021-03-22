@@ -1,6 +1,42 @@
 from parameters import *
 
 
+def name_var(var) -> str:
+    return f'{var=}'.split('=')[0]
+
+
+def assert_positive_integer(variable, name):
+    assert type(variable) == int, 'Invalid type of parameter %r; should be an integer.' % name
+    assert variable > 0, 'Invalid value of %r; should be greater than 0.' % name
+
+
+def assert_2d_tuple(variable, name, positive=False):
+    assert type(variable) == tuple, 'Invalid type of parameter %r; should be a tuple.' % name
+    assert len(variable) == 2, 'Invalid length of parameter %r; should be 2.' % name
+    assert type(variable[0]) == int and type(variable[1]) == int, \
+        'Invalid type of %r elements; should be integer.' % name
+    if positive:
+        assert variable[0] > 0 and variable[1] > 0, 'Invalid value of %r elements; should be greater than 0.' % name
+
+
+def create_image(image_shape: tuple = (64, 64), plot=True) -> Tensor:
+    x = torch.multiply(torch.ones(image_shape, device='cuda:0'), -INF)
+
+    n_points = 25
+    range_points = [-100, 300]
+    points = list()
+    for i in range(n_points):
+        point_tensor = np.random.rand(2) * 64
+        point = point_tensor.astype(int)
+        x[point[0], point[1]] = torch.rand(1) * (range_points[1] - range_points[0]) + range_points[0]
+        points.append(point)
+
+    if plot:
+        plot_image(x, 'Original image')
+
+    return x
+
+
 def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
     assert len(shape) == 2, 'Length of shape should be 2.'
 
