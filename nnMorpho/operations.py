@@ -1,7 +1,8 @@
 from parameters import *
 
 
-def erosion(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
+def erosion(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+            border_value: BorderType = None):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         erosion of an image by a structural element.
 
@@ -58,13 +59,14 @@ def erosion(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple
     return _erosion(image, structural_element, origin, border_value)
 
 
-def _erosion(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = -INF):
+def _erosion(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+             border_value: Union[int, float] = -INF):
     """ Computation of the erosion
         See :erosion for information about input, parameters and output.
     """
     # Pad image
-    image_pad = f.pad(image, [origin[0], structural_element.shape[0] - origin[0] - 1, origin[1], structural_element.shape[1] - origin[1] - 1],
-                      mode='constant', value=border_value)
+    image_pad = f.pad(image, [origin[0], structural_element.shape[0] - origin[0] - 1, origin[1],
+                              structural_element.shape[1] - origin[1] - 1], mode='constant', value=border_value)
 
     # Convert the image to a 4D image of the form (B, C, H, W)
     if image.ndim == 2:
@@ -91,7 +93,8 @@ def _erosion(image: torch.Tensor, structural_element: torch.Tensor, origin: tupl
     return torch.reshape(result, image.shape)
 
 
-def dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
+def dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+             border_value: BorderType = None):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         dilation of an image by a structural element.
 
@@ -150,7 +153,8 @@ def dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tupl
     return _dilation(image, structural_element, origin, border_value)
 
 
-def _dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = -INF):
+def _dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+              border_value: Union[int, float] = -INF):
     """ Computation of the dilation
         See :dilation for information about input, parameters and output.
     """
@@ -165,8 +169,8 @@ def _dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tup
         raise NotImplementedError('Currently nnMorpho only supports image-like tensors.')
 
     # Pad image
-    image_pad = f.pad(image_4d, [origin[0], structural_element.shape[0] - origin[0] - 1, origin[1], structural_element.shape[1] - origin[1] - 1],
-                      mode='constant', value=border_value)
+    image_pad = f.pad(image_4d, [origin[0], structural_element.shape[0] - origin[0] - 1, origin[1],
+                                 structural_element.shape[1] - origin[1] - 1], mode='constant', value=border_value)
 
     # Unfold the image
     image_unfolded = f.unfold(image_pad, kernel_size=structural_element.shape)
@@ -183,7 +187,8 @@ def _dilation(image: torch.Tensor, structural_element: torch.Tensor, origin: tup
     return torch.reshape(result, image.shape)
 
 
-def opening(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
+def opening(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+            border_value: BorderType = None):
     """ Opening is one of the derived operations of Mathematical Morphology: it consists on eroding an image and then
         dilating it. This function computes the grayscale opening of an image by a structural element.
 
@@ -237,14 +242,17 @@ def opening(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple
     return _opening(image, structural_element, origin, border_value)
 
 
-def _opening(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = -INF):
+def _opening(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+             border_value: Union[int, float] = -INF):
     """ Computation of the opening
             See :opening for information about input, parameters and output.
         """
-    return _dilation(_erosion(image, structural_element, origin, border_value), structural_element, origin, border_value)
+    return _dilation(_erosion(image, structural_element, origin, border_value),
+                     structural_element, origin, border_value)
 
 
-def closing(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: BorderType = None):
+def closing(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+            border_value: BorderType = None):
     """ Closing is one of the derived operations of Mathematical Morphology: it consists on dilating an image and then
         eroding it. This function computes the grayscale closing of an image by a structural element.
 
@@ -298,11 +306,13 @@ def closing(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple
     return _closing(image, structural_element, origin, border_value)
 
 
-def _closing(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0), border_value: Union[int, float] = -INF):
+def _closing(image: torch.Tensor, structural_element: torch.Tensor, origin: tuple = (0, 0),
+             border_value: Union[int, float] = -INF):
     """ Computation of the closing
             See :closing for information about input, parameters and output.
         """
-    return _erosion(_dilation(image, structural_element, origin, border_value), structural_element, origin, border_value)
+    return _erosion(_dilation(image, structural_element, origin, border_value),
+                    structural_element, origin, border_value)
 
 
 if __name__ == '__main__':

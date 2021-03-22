@@ -19,7 +19,7 @@ NoneType = type(None)
 BorderType = Union[int, float, NoneType]
 
 # Constants
-INF = 1e6
+INF = 1e1
 EPS = 1e-6
 
 # Device

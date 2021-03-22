@@ -50,17 +50,30 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
             increment = 100
 
         strel = torch.multiply(torch.ones(shape, device=DEVICE), -INF)
-        for i in range(shape[0] // 2):
-            strel[i: -i, :] = i * increment
-        for j in range(shape[1] // 2):
-            strel[:, j: -j] = j * increment
 
-        if shape[0] <= shape[1]:
+        if shape[0] == shape[1]:
+            for i in range(shape[0] // 2 + 1):
+                j = i
+                strel[i: -i, :] = i * increment
+                strel[:, j: -j] = j * increment
+        if shape[0] < shape[1]:
+            warnings.warn("Not checked option.")
+            for i in range(shape[0] // 2 + 1):
+                strel[i: -i, :] = i * increment
+            for j in range(shape[1] // 2 + 1):
+                strel[:, j: -j] = j * increment
+
             if shape[0] % 2 == 1:
                 strel[shape[0] // 2 + 1, :] = (shape[0] // 2 + 1) * increment
             if shape[1] % 2 == 1:
                 strel[:, shape[1] // 2 + 1] = (shape[1] // 2 + 1) * increment
-        else:
+        elif shape[0] > shape[1]:
+            warnings.warn("Not checked option.")
+            for i in range(shape[0] // 2 + 1):
+                strel[i: -i, :] = i * increment
+            for j in range(shape[1] // 2 + 1):
+                strel[:, j: -j] = j * increment
+
             if shape[1] % 2 == 1:
                 strel[:, shape[1] // 2 + 1] = (shape[1] // 2 + 1) * increment
             if shape[0] % 2 == 1:
@@ -86,10 +99,17 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
         raise ValueError('Invalid parameter form.\nAllowed parameters are: "square", "cross" and "rake".')
 
 
-def plot_image(tensor: torch.Tensor, title, origin=None, show=True):
+def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.imshow(tensor.cpu().detach().numpy(), cmap='hot')
+
+    try:
+        v_min = kwargs['v_min']
+        v_max = kwargs['v_max']
+        plt.imshow(tensor.cpu().detach().numpy(), cmap='hot', vmin=v_min, vmax=v_max)
+    except KeyError:
+        plt.imshow(tensor.cpu().detach().numpy(), cmap='hot')
+
     plt.title(title)
     if origin:
         plt.scatter(origin[0], origin[1], marker='x', c='r')
