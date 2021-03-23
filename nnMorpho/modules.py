@@ -1,7 +1,8 @@
 from parameters import *
-from operations import _erosion, _dilation, _opening, _closing
+from operations import _erosion, _dilation
 
 
+# Todo: check parameters OK when initializing modules
 class Erosion(Module):
     def __init__(self, shape: tuple, origin: tuple, border_value=INF):
         super(Erosion, self).__init__()
@@ -18,7 +19,6 @@ class Erosion(Module):
 class Dilation(Module):
     def __init__(self, shape: tuple, origin: tuple, border_value=-INF):
         super(Dilation, self).__init__()
-        # Todo: check parameters
         self.shape = shape
         self.origin = origin
         self.border_value = border_value
