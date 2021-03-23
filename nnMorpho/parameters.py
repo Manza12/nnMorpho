@@ -16,7 +16,6 @@ classes = [Tensor, Module, Union]
 
 # Types
 NoneType = type(None)
-BorderType = Union[int, float, str]
 
 # Constants
 # Todo: allow to configure different values
