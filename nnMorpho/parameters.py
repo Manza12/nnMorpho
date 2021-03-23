@@ -9,17 +9,18 @@ import torch.nn.functional as f
 
 from torch import Tensor
 from torch.nn import Module
-from typing import Union
+from typing import Union, List
 
 packages = [logging, sys, warnings, torch, time, np, f]
 classes = [Tensor, Module, Union]
 
 # Types
 NoneType = type(None)
-BorderType = Union[int, float, NoneType]
+BorderType = Union[int, float, str]
 
 # Constants
-INF = 1e1
+# Todo: allow to configure different values
+INF = 1e6
 EPS = 1e-6
 
 # Device
