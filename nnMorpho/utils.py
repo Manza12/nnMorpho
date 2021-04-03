@@ -1,4 +1,4 @@
-from parameters import *
+from nnMorpho.parameters import *
 
 
 def name_var(var) -> str:
@@ -122,7 +122,7 @@ def to_greyscale(image: np.ndarray, warn=True):
         return image
     elif image.ndim == 3:
         if image.shape[2] == 3:
-            return image.mean(3)
+            return np.mean(image, 2)
         elif image.shape[2] == 4:
             if warn:
                 warnings.warn('Discarding transparency when converting to grayscale.')

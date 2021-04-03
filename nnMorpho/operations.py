@@ -1,6 +1,15 @@
 from parameters import *
 
 
+def minimum_differences(input_tensor, structural_element):
+    # Differences
+    result = input_tensor - structural_element
+    # Take the minimum
+    for dim in range(structural_element.ndim):
+        result, _ = torch.min(result, dim=-1)
+    return result
+
+
 def check_parameters(input_tensor, structural_element, origin, border_value):
     # Check types
     assert type(input_tensor) == torch.Tensor, 'Input type should be torch.Tensor.'
@@ -94,25 +103,13 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     """ Computation of the erosion
         See :erosion for information about inputs, parameters and outputs.
     """
-    dim_shift = input_tensor.ndim - structural_element.ndim
-
     # Pad image
     pad_list = []  # [0] * 2 * dim_shift
     for dim in range(structural_element.ndim):
         pad_list += [origin[-dim+1], structural_element.shape[-dim+1] - origin[-dim+1] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
-    # Unfold the input
-    input_unfolded = input_pad
-    for dim in range(structural_element.ndim):
-        input_unfolded = input_unfolded.unfold(dim_shift + dim, structural_element.shape[dim], 1)
-
-    # Differences
-    result = input_unfolded - structural_element
-
-    # Take the minimum
-    for dim in range(structural_element.ndim):
-        result, _ = torch.min(result, dim=-1)
+    result = morpho_cuda.erosion(input_pad, structural_element)
 
     return result
 
@@ -291,14 +288,18 @@ if __name__ == '__main__':
     logging.info('Running test of basic operations...')
 
     _image = imread(join('..', 'images', 'lena.png'))
-    _image = to_greyscale(np.array(_image), warn=False)
+    _image = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+
+    # _image_size = (1024, 512)
+    # _image = 255 * np.random.rand(_image_size[0], _image_size[1]).astype(np.float32)
 
     plt.figure()
     plt.imshow(_image, cmap='gray', vmin=0, vmax=255)
     plt.title('Original image')
 
-    _strel = np.zeros((7, 9))
-    _origin = (2, 3)
+    _strel_size = (5, 7)
+    _strel = np.zeros(_strel_size, dtype=np.float32)
+    _origin = (0, 0)
 
     _strel_image = np.pad(_strel, ((5, 5), (5, 5)), 'constant', constant_values=-INF)
 
@@ -319,25 +320,25 @@ if __name__ == '__main__':
     plt.imshow(_erosion_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
     plt.title('Erosion')
 
-    # Dilation
-    _dilation_tensor = dilation(_image_tensor, _strel_tensor, origin=_origin)
-
-    plt.figure()
-    plt.imshow(_dilation_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    plt.title('Dilation')
-
-    # Opening
-    _opening_tensor = opening(_image_tensor, _strel_tensor, origin=_origin)
-
-    plt.figure()
-    plt.imshow(_opening_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    plt.title('Opening')
-
-    # Closing
-    _closing_tensor = closing(_image_tensor, _strel_tensor, origin=_origin)
-
-    plt.figure()
-    plt.imshow(_closing_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    plt.title('Closing')
+    # # Dilation
+    # _dilation_tensor = dilation(_image_tensor, _strel_tensor, origin=_origin)
+    #
+    # plt.figure()
+    # plt.imshow(_dilation_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
+    # plt.title('Dilation')
+    #
+    # # Opening
+    # _opening_tensor = opening(_image_tensor, _strel_tensor, origin=_origin)
+    #
+    # plt.figure()
+    # plt.imshow(_opening_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
+    # plt.title('Opening')
+    #
+    # # Closing
+    # _closing_tensor = closing(_image_tensor, _strel_tensor, origin=_origin)
+    #
+    # plt.figure()
+    # plt.imshow(_closing_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
+    # plt.title('Closing')
 
     plt.show()

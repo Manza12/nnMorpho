@@ -1,5 +1,6 @@
 from parameters import *
-from operations import _erosion, _dilation
+from operations import _dilation, _erosion
+from functions import ErosionFunction
 
 
 # Todo: check parameters OK when initializing modules
@@ -13,7 +14,7 @@ class Erosion(Module):
         self.structural_element.requires_grad = True
 
     def forward(self, image: Tensor) -> Tensor:
-        return _erosion(image, self.structural_element, self.origin, self.border_value)
+        return ErosionFunction.apply(image, self.structural_element, self.origin, self.border_value)
 
 
 class Dilation(Module):

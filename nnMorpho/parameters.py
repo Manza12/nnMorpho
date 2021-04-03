@@ -7,20 +7,23 @@ import time
 import numpy as np
 import torch.nn.functional as f
 
+import morphology_cuda as morpho_cuda
 from torch import Tensor
 from torch.nn import Module
-from typing import Union, List
+from typing import Union, List, Any
 
-packages = [logging, sys, warnings, torch, time, np, f]
-classes = [Tensor, Module, Union]
+packages = [logging, sys, warnings, torch, time, np, f, morpho_cuda]
+classes = [Tensor, Module, Union, List, Any]
 
 # Types
 NoneType = type(None)
 
 # Constants
 # Todo: allow to configure different values
-INF = 1e6
+INF = 1e2
 EPS = 1e-6
+BLOCK_SHAPE = torch.tensor((32, 32, 1), dtype=torch.float32)
+BLOCK_SHAPE_INT = torch.tensor((32, 32, 1), dtype=torch.int16)
 
 # Device
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
