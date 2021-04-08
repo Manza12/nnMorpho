@@ -25,6 +25,6 @@ class ErosionFunction(torch.autograd.Function):
     def backward(ctx, *grad_output):
         indexes, strel_shape = ctx.saved_tensors
 
-        result = morpho_cuda.erosion_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE_INT)
+        result = morpho_cuda.erosion_backward(grad_output[0], indexes, strel_shape, BLOCK_SHAPE_INT)
 
         return None, result, None, None

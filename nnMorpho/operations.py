@@ -1,13 +1,12 @@
 from parameters import *
 
 
-def minimum_differences(input_tensor, structural_element):
-    # Differences
-    result = input_tensor - structural_element
-    # Take the minimum
+def pad_tensor(input_tensor, origin, structural_element, border_value):
+    pad_list = []
     for dim in range(structural_element.ndim):
-        result, _ = torch.min(result, dim=-1)
-    return result
+        pad_list += [origin[-dim + 1], structural_element.shape[-dim + 1] - origin[-dim + 1] - 1]
+    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
+    return input_pad
 
 
 def check_parameters(input_tensor, structural_element, origin, border_value):
@@ -103,13 +102,25 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     """ Computation of the erosion
         See :erosion for information about inputs, parameters and outputs.
     """
-    # Pad image
-    pad_list = []  # [0] * 2 * dim_shift
-    for dim in range(structural_element.ndim):
-        pad_list += [origin[-dim+1], structural_element.shape[-dim+1] - origin[-dim+1] - 1]
+    # Pad input
+    pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
+                origin[0], structural_element.shape[0] - origin[0] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
-    result = morpho_cuda.erosion(input_pad, structural_element)
+    if str(input_tensor.device) == 'cpu':
+        # Unfold the input
+        input_unfolded = input_pad
+        for dim in range(structural_element.ndim):
+            input_unfolded = input_unfolded.unfold(dim, structural_element.shape[dim], 1)
+
+        # Sums
+        result = input_unfolded - structural_element
+
+        # Take the maximum
+        for dim in range(structural_element.ndim):
+            result, _ = torch.min(result, dim=-1)
+    else:
+        result = morpho_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
 
     return result
 

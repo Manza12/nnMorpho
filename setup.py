@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name='nnMorpho',
   packages=['nnMorpho'],
-  version='0.1.2',
+  version='1.0.0',
   license='MIT',
   description='A library for general purpose Mathematical Morphology',
   author='Gonzalo Romero-García',
@@ -14,6 +14,7 @@ setup(
           'numpy',
           'torch',
           'matplotlib',
+          'scipy',
           'imageio'
       ],
   classifiers=[
