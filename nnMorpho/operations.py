@@ -351,18 +351,19 @@ if __name__ == '__main__':
             print("\nTesting", _operation.__name__, "...")
             _operation_sp = _operations_sp[i]
 
-            # Scipy
+            # Assign border value
             if _operation == erosion or _operation == opening:
-                border_value = INF
+                _border_value = INF
             elif _operation == dilation or _operation == closing:
-                border_value = -INF
+                _border_value = -INF
             else:
                 raise Exception("Operation unknown")
 
+            # Scipy
             print("\nScipy")
             sta = time.time()
             _output_array_scipy = _operation_sp(_input_array, structure=_strel_array, mode='constant',
-                                                cval=border_value)
+                                                cval=_border_value)
             end = time.time()
             print("Time for Scipy:", round(end - sta, 6), "seconds")
 
@@ -384,7 +385,7 @@ if __name__ == '__main__':
 
                 sta = time.time()
                 _output_tensor_cuda = _operation(_input_tensor_cuda, _strel_tensor_cuda, origin=_origin,
-                                                 border_value=border_value)
+                                                 border_value=_border_value)
                 end = time.time()
                 time_computation = end - sta
                 print("Time for computation:", round(time_computation, 6), "seconds")
@@ -393,7 +394,7 @@ if __name__ == '__main__':
                 plot_image(_output_tensor_cuda, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
                            cmap='gray', v_min=0, v_max=255)
 
-                error = np.sum(np.abs(_output_tensor_cuda.cpu().numpy() - _output_array_scipy))
+                error = np.matrix.sum(np.abs(_output_tensor_cuda.cpu().numpy() - _output_array_scipy))
                 print("Error Scipy/nnMorpho =", error)
             else:
                 sta = time.time()
@@ -405,7 +406,7 @@ if __name__ == '__main__':
                 plot_image(_output_tensor, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
                            cmap='gray', v_min=0, v_max=255)
 
-                error = np.sum(np.abs(_output_tensor.numpy() - _output_array_scipy))
+                error = np.matrix.sum(np.abs(_output_tensor.numpy() - _output_array_scipy))
                 print("Error Scipy/nnMorpho =", error)
 
     if _show_images:
