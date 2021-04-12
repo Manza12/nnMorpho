@@ -102,7 +102,7 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     try:
         cmap = kwargs['cmap']
     except KeyError:
-        cmap = 'hot'
+        cmap = 'gray'
 
     try:
         v_min = kwargs['v_min']
@@ -128,3 +128,11 @@ def to_greyscale(image: np.ndarray, warn=True):
             if warn:
                 warnings.warn('Discarding transparency when converting to grayscale.')
             return image[:, :, :3].mean(2)
+
+
+def lin_scale(value):
+    return value
+
+
+def log_scale(value):
+    return np.log10(value)

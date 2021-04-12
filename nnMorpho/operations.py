@@ -49,10 +49,11 @@ def fill_border(border_value, operation):
     return border_value
 
 
-def convert_float(input_tensor):
-    if input_tensor.dtype not in [torch.float32, torch.float64]:
-        warnings.warn('Casting image type (%r) to float32 since PyTorch only supports float tensors.'
-                      % input_tensor.dtype)
+def convert_float(input_tensor, warn=True):
+    if not input_tensor.dtype == torch.float32:
+        if warn:
+            warnings.warn('Casting image type (%r) to float32 since nnMorpho only supports float32 tensors.'
+                          % input_tensor.dtype)
         input_tensor = input_tensor.float()
 
     return input_tensor
