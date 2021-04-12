@@ -1,8 +1,4 @@
-from nnMorpho.parameters import *
-
-
-def name_var(var) -> str:
-    return f'{var=}'.split('=')[0]
+from parameters import *
 
 
 def assert_positive_integer(variable, name):

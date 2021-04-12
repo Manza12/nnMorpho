@@ -120,7 +120,7 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
         for dim in range(structural_element.ndim):
             result, _ = torch.min(result, dim=-1)
     else:
-        result = morpho_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
+        result = morphology_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
 
     return result
 
@@ -155,7 +155,7 @@ def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     check_parameters(input_tensor, structural_element, origin, border_value)
 
     # Fill border value if needed
-    border_value = fill_border(border_value, 'erosion')
+    border_value = fill_border(border_value, 'dilation')
 
     # Convert tensor to float if needed
     input_tensor = convert_float(input_tensor)
@@ -169,25 +169,25 @@ def _dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, orig
     """ Computation of the dilation
         See :dilation for information about input, parameters and output.
     """
-    dim_shift = input_tensor.ndim - structural_element.ndim
-
-    # Pad image
-    pad_list = []
-    for dim in range(structural_element.ndim):
-        pad_list += [origin[-dim + 1], structural_element.shape[-dim + 1] - origin[-dim + 1] - 1]
+    # Pad input
+    pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
+                origin[0], structural_element.shape[0] - origin[0] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
-    # Unfold the input
-    input_unfolded = input_pad
-    for dim in range(structural_element.ndim):
-        input_unfolded = input_unfolded.unfold(dim_shift + dim, structural_element.shape[dim], 1)
+    if str(input_tensor.device) == 'cpu':
+        # Unfold the input
+        input_unfolded = input_pad
+        for dim in range(structural_element.ndim):
+            input_unfolded = input_unfolded.unfold(dim, structural_element.shape[dim], 1)
 
-    # Sums
-    result = input_unfolded + structural_element
+        # Sums
+        result = input_unfolded + structural_element
 
-    # Take the maximum
-    for dim in range(structural_element.ndim):
-        result, _ = torch.max(result, dim=-1)
+        # Take the maximum
+        for dim in range(structural_element.ndim):
+            result, _ = torch.max(result, dim=-1)
+    else:
+        result = morphology_cuda.dilation(input_pad, structural_element, BLOCK_SHAPE)
 
     return result
 

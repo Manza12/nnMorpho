@@ -1,5 +1,5 @@
-import scipy.ndimage.morphology as morpho_sp
-from operations import erosion
+from scipy.ndimage.morphology import grey_erosion, grey_dilation, grey_opening, grey_closing
+from operations import erosion, dilation, opening, closing
 import matplotlib.pyplot as plt
 
 from parameters import *
@@ -13,24 +13,12 @@ def plot(tensor, title, show=True):
         plt.show()
 
 
-def erosion_scipy(input_array, strel_array, border_value=INF):
-    return morpho_sp.grey_erosion(input_array, structure=strel_array, mode='constant', cval=border_value)
-
-
-def erosion_cuda(input_tensor_cuda, strel_tensor_cuda, origin=(0, 0), border_value=INF, block_shape=BLOCK_SHAPE):
-    input_pad = f.pad(input_tensor_cuda,
-                      (origin[1], strel_tensor_cuda.shape[1] - origin[1] - 1,
-                       origin[0], strel_tensor_cuda.shape[0] - origin[0] - 1),
-                      mode='constant', value=border_value)
-    return morpho_cuda.erosion(input_pad, strel_tensor_cuda, block_shape)
-
-
 if __name__ == '__main__':
     # Test Operations
     print("Testing the operations of nnMorpho respect to Scipy")
 
     # Parameters
-    _show_images = False
+    _show_images = True
     _strel_dim = (17, 17)
     _origin = (_strel_dim[0] // 2, _strel_dim[1] // 2)
     _device = 'cuda'
@@ -62,61 +50,77 @@ if __name__ == '__main__':
 
     _path = join('..', '..', 'images')
     _images = [im for im in listdir(_path) if isfile(join(_path, im))]
-    for im in _images:
-        print("\n----\nTreating image", im)
 
-        _image = imread(join(_path, im))
-        _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
-        _input_tensor = torch.tensor(_input_array)
+    # Operations
+    _operations = [erosion, dilation, opening, closing]
+    _operations_sp = [grey_erosion, grey_dilation, grey_opening, grey_closing]
 
-        print("Input size:", _input_array.shape)
+    # Loop
+    for i, _operation in enumerate(_operations):
+        print("\n#### Testing", _operation.__name__, "####")
+        _operation_sp = _operations_sp[i]
+        for im in _images:
+            print("\n----\nTreating image", im)
 
-        plot(_input_tensor, 'Input image', show=False)
+            _image = imread(join(_path, im))
+            _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+            _input_tensor = torch.tensor(_input_array)
 
-        # Scipy
-        print("\nScipy")
-        sta = time.time()
-        _output_array_scipy = erosion_scipy(_input_array, _strel_array)
-        end = time.time()
-        print("Time for Scipy:", round(end - sta, 6), "seconds")
+            print("Input size:", _input_array.shape)
 
-        _output_tensor_scipy = torch.tensor(_output_array_scipy)
-        plot(_output_tensor_scipy, 'Output image - Scipy', show=False)
+            plot(_input_tensor, 'Input image', show=False)
 
-        # nnMorpho
-        print("\nnnMorpho")
+            # Scipy
+            if _operation == erosion or _operation == opening:
+                border_value = INF
+            elif _operation == dilation or _operation == closing:
+                border_value = -INF
+            else:
+                raise Exception("Operation unknown")
 
-        if not str(_device) == 'cpu':
-            # Memory transfer
+            print("\nScipy")
             sta = time.time()
-            _input_tensor_cuda = _input_tensor.to(_device)
-            _strel_tensor_cuda = _strel_tensor.to(_device)
+            _output_array_scipy = _operation_sp(_input_array, structure=_strel_array, mode='constant', cval=border_value)
             end = time.time()
-            time_memory_transfer = end - sta
-            print("Time for Memory transfer to GPU:", round(time_memory_transfer, 6), "seconds")
+            print("Time for Scipy:", round(end - sta, 6), "seconds")
 
-            sta = time.time()
-            _output_tensor_cuda = erosion(_input_tensor_cuda, _strel_tensor_cuda, origin=_origin, border_value='geodesic')
-            end = time.time()
-            time_computation = end - sta
-            print("Time for computation:", round(time_computation, 6), "seconds")
-            print("Time for nnMorpho:", round(time_computation + time_memory_transfer, 6), "seconds")
+            _output_tensor_scipy = torch.tensor(_output_array_scipy)
+            plot(_output_tensor_scipy, 'Image after ' + _operation.__name__ + ' - Scipy', show=False)
 
-            plot(_output_tensor_cuda, 'Output image - nnMorpho', show=False)
+            # nnMorpho
+            print("\nnnMorpho")
 
-            error = np.sum(np.abs(_output_tensor_cuda.cpu().numpy() - _output_array_scipy))
-            print("Error Scipy/nnMorpho =", error)
-        else:
-            sta = time.time()
-            _output_tensor = erosion(_input_tensor, _strel_tensor, origin=_origin,
-                                          border_value='geodesic')
-            end = time.time()
-            print("Time for nnMorpho:", round(end - sta, 6), "seconds")
+            if not str(_device) == 'cpu':
+                # Memory transfer
+                sta = time.time()
+                _input_tensor_cuda = _input_tensor.to(_device)
+                _strel_tensor_cuda = _strel_tensor.to(_device)
+                end = time.time()
+                time_memory_transfer = end - sta
+                print("Time for Memory transfer to GPU:", round(time_memory_transfer, 6), "seconds")
 
-            plot(_output_tensor, 'Output image - nnMorpho', show=False)
+                sta = time.time()
+                _output_tensor_cuda = _operation(_input_tensor_cuda, _strel_tensor_cuda, origin=_origin, border_value='geodesic')
+                end = time.time()
+                time_computation = end - sta
+                print("Time for computation:", round(time_computation, 6), "seconds")
+                print("Time for nnMorpho:", round(time_computation + time_memory_transfer, 6), "seconds")
 
-            error = np.sum(np.abs(_output_tensor.numpy() - _output_array_scipy))
-            print("Error Scipy/nnMorpho =", error)
+                plot(_output_tensor_cuda, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False)
+
+                error = np.sum(np.abs(_output_tensor_cuda.cpu().numpy() - _output_array_scipy))
+                print("Error Scipy/nnMorpho =", error)
+            else:
+                sta = time.time()
+                _output_tensor = erosion(_input_tensor, _strel_tensor, origin=_origin,
+                                              border_value='geodesic')
+                end = time.time()
+                print("Time for nnMorpho:", round(end - sta, 6), "seconds")
+
+                plot(_output_tensor, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False)
+
+                error = np.sum(np.abs(_output_tensor.numpy() - _output_array_scipy))
+                print("Error Scipy/nnMorpho =", error)
 
     if _show_images:
         plt.show()
