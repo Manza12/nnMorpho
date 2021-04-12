@@ -100,11 +100,16 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     plt.figure()
 
     try:
+        cmap = kwargs['cmap']
+    except KeyError:
+        cmap = 'hot'
+
+    try:
         v_min = kwargs['v_min']
         v_max = kwargs['v_max']
-        plt.imshow(tensor.cpu().detach().numpy(), cmap='hot', vmin=v_min, vmax=v_max)
+        plt.imshow(tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
     except KeyError:
-        plt.imshow(tensor.cpu().detach().numpy(), cmap='hot')
+        plt.imshow(tensor.cpu().detach().numpy(), cmap=cmap)
 
     plt.title(title)
     if origin:

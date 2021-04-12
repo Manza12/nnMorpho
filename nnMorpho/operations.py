@@ -291,65 +291,122 @@ def _closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+    # Test Operations
+    print("Testing the operations of nnMorpho respect to Scipy")
+
+    # Parameters
+    _show_images = True
+    _strel_dim = (17, 17)
+    _origin = (_strel_dim[0] // 2, _strel_dim[1] // 2)
+    _device = 'cuda'
+    _device = torch.device("cuda:0" if torch.cuda.is_available() and _device == 'cuda' else "cpu")
+
+    print("\nParameters:")
+    print("Showing images:", _show_images)
+    print("Structural element dimension:", _strel_dim)
+    print("Origin:", _origin)
+    print("Device:", _device)
+
+    # Structural element
+    _strel_tensor = torch.rand(_strel_dim, dtype=torch.float32) * 12 - 6
+    _strel_array = _strel_tensor.numpy()
+
+    # Start CUDA
+    if not str(_device) == 'cpu':
+        print("\nStarting CUDA")
+        sta = time.time()
+        _starter = torch.zeros((1, 1), dtype=torch.float32, device=_device)
+        end = time.time()
+        print("Time for start CUDA:", round(end - sta, 6), "seconds")
+
+    # Inputs
     from imageio import imread
-    from os.path import join
-    from utils import to_greyscale
+    from os.path import join, isfile
+    from os import listdir
+    from utils import to_greyscale, plot_image
+    from scipy.ndimage.morphology import grey_erosion, grey_dilation, grey_opening, grey_closing
+    from matplotlib.pyplot import show
 
-    logging.info('Running test of basic operations...')
+    _path = join('..', 'images')
+    _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
-    _image = imread(join('..', 'images', 'lena.png'))
-    _image = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+    # Operations
+    _operations = [erosion, dilation, opening, closing]
+    _operations_sp = [grey_erosion, grey_dilation, grey_opening, grey_closing]
 
-    # _image_size = (1024, 512)
-    # _image = 255 * np.random.rand(_image_size[0], _image_size[1]).astype(np.float32)
+    # Loop
 
-    plt.figure()
-    plt.imshow(_image, cmap='gray', vmin=0, vmax=255)
-    plt.title('Original image')
+    for im in _images:
+        print("\n----\nTreating image", im)
 
-    _strel_size = (5, 7)
-    _strel = np.zeros(_strel_size, dtype=np.float32)
-    _origin = (0, 0)
+        _image = imread(join(_path, im))
+        _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+        _input_tensor = torch.tensor(_input_array)
 
-    _strel_image = np.pad(_strel, ((5, 5), (5, 5)), 'constant', constant_values=-INF)
+        print("Input size:", _input_array.shape)
 
-    plt.figure()
-    plt.imshow(_strel_image, cmap='gray', vmin=-100, vmax=0, origin='lower')
-    plt.scatter(_origin[0] + 5, _origin[1] + 5, marker='x', c='r')
-    plt.title('Structural element\n(red cross is the origin)')
+        plot_image(_input_tensor, 'Input image', show=False, cmap='gray', v_min=0, v_max=255)
 
-    logging.info('PyTorch device: ' + DEVICE.type + ':%r' % DEVICE.index)
+        for i, _operation in enumerate(_operations):
+            print("\nTesting", _operation.__name__, "...")
+            _operation_sp = _operations_sp[i]
 
-    _image_tensor = torch.tensor(_image, device=DEVICE)
-    _strel_tensor = torch.tensor(_strel, device=DEVICE)
+            # Scipy
+            if _operation == erosion or _operation == opening:
+                border_value = INF
+            elif _operation == dilation or _operation == closing:
+                border_value = -INF
+            else:
+                raise Exception("Operation unknown")
 
-    # Erosion
-    _erosion_tensor = erosion(_image_tensor, _strel_tensor, origin=_origin)
+            print("\nScipy")
+            sta = time.time()
+            _output_array_scipy = _operation_sp(_input_array, structure=_strel_array, mode='constant',
+                                                cval=border_value)
+            end = time.time()
+            print("Time for Scipy:", round(end - sta, 6), "seconds")
 
-    plt.figure()
-    plt.imshow(_erosion_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    plt.title('Erosion')
+            _output_tensor_scipy = torch.tensor(_output_array_scipy)
+            plot_image(_output_tensor_scipy, 'Image after ' + _operation.__name__ + ' - Scipy', show=False, cmap='gray',
+                       v_min=0, v_max=255)
 
-    # # Dilation
-    # _dilation_tensor = dilation(_image_tensor, _strel_tensor, origin=_origin)
-    #
-    # plt.figure()
-    # plt.imshow(_dilation_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    # plt.title('Dilation')
-    #
-    # # Opening
-    # _opening_tensor = opening(_image_tensor, _strel_tensor, origin=_origin)
-    #
-    # plt.figure()
-    # plt.imshow(_opening_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    # plt.title('Opening')
-    #
-    # # Closing
-    # _closing_tensor = closing(_image_tensor, _strel_tensor, origin=_origin)
-    #
-    # plt.figure()
-    # plt.imshow(_closing_tensor.cpu().numpy(), cmap='gray', vmin=0, vmax=255)
-    # plt.title('Closing')
+            # nnMorpho
+            print("\nnnMorpho")
 
-    plt.show()
+            if not str(_device) == 'cpu':
+                # Memory transfer
+                sta = time.time()
+                _input_tensor_cuda = _input_tensor.to(_device)
+                _strel_tensor_cuda = _strel_tensor.to(_device)
+                end = time.time()
+                time_memory_transfer = end - sta
+                print("Time for Memory transfer to GPU:", round(time_memory_transfer, 6), "seconds")
+
+                sta = time.time()
+                _output_tensor_cuda = _operation(_input_tensor_cuda, _strel_tensor_cuda, origin=_origin,
+                                                 border_value=border_value)
+                end = time.time()
+                time_computation = end - sta
+                print("Time for computation:", round(time_computation, 6), "seconds")
+                print("Time for nnMorpho:", round(time_computation + time_memory_transfer, 6), "seconds")
+
+                plot_image(_output_tensor_cuda, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
+                           cmap='gray', v_min=0, v_max=255)
+
+                error = np.sum(np.abs(_output_tensor_cuda.cpu().numpy() - _output_array_scipy))
+                print("Error Scipy/nnMorpho =", error)
+            else:
+                sta = time.time()
+                _output_tensor = erosion(_input_tensor, _strel_tensor, origin=_origin,
+                                         border_value='geodesic')
+                end = time.time()
+                print("Time for nnMorpho:", round(end - sta, 6), "seconds")
+
+                plot_image(_output_tensor, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
+                           cmap='gray', v_min=0, v_max=255)
+
+                error = np.sum(np.abs(_output_tensor.numpy() - _output_array_scipy))
+                print("Error Scipy/nnMorpho =", error)
+
+    if _show_images:
+        show()
