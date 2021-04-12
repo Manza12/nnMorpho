@@ -4,10 +4,25 @@ from parameters import *
 class ErosionFunction(torch.autograd.Function):
     @staticmethod
     def forward(ctx, *args):
-        input_tensor = args[0]
-        strel_tensor = args[1]
-        origin = args[2]
-        border_value = args[3]
+        try:
+            input_tensor = args[0]
+        except IndexError:
+            raise Exception('Insufficient parameters: first argument should be the input tensor.')
+
+        try:
+            strel_tensor = args[1]
+        except IndexError:
+            raise Exception('Insufficient parameters: second argument should be the structural element.')
+
+        try:
+            origin = args[2]
+        except IndexError:
+            raise Exception('Insufficient parameters: third argument should be the origin.')
+
+        try:
+            border_value = args[3]
+        except IndexError:
+            raise Exception('Insufficient parameters: fourth argument should be the border value.')
 
         input_pad = f.pad(input_tensor,
                           (origin[1], strel_tensor.shape[1] - origin[1] - 1,

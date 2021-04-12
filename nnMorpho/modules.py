@@ -63,8 +63,8 @@ class Closing(Module):
 
 def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, structural_element_form: str,
                   structural_element_shape: tuple, structural_element_origin: Union[str, tuple], model_shape: tuple,
-                  model_origin: tuple, iterations: int, iterations_per_step: int, plot_steps: bool, loss_scale: str,
-                  use_border: bool, learning_rate: float):
+                  model_origin: tuple, epochs: int, iterations: int, iterations_per_step: int, plot_steps: bool,
+                  plot_epoch: bool, loss_scale: str, use_border: bool, learning_rate: float):
     """ Test the learning of the modules
 
         Parameters
@@ -84,6 +84,8 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
             The shape of the structural element of the model. Should be bigger than the actual structural element.
         :param model_origin: tuple
             The origin of the structural element of the model.
+        :param epochs: int
+            Number of epochs of the learning process.
         :param iterations: int
             Number of iterations of the learning process.
         :param iterations_per_step: int
@@ -102,6 +104,7 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
     from operations import dilation, erosion, opening, closing
     from utils import plot_image, get_strel, assert_2d_tuple, create_image, assert_positive_integer, log_scale, \
         lin_scale
+    from tqdm.std import tqdm
 
     # Prints
     print("Learning the structural element of %r." % operation_str)
@@ -188,36 +191,44 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
     else:
         raise ValueError("Invalid loss scale: options are: 'lin' and 'log'.")
 
-    # Optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-
-    # Learning loop
-    start = time.time()
-
     assert_positive_integer(iterations, 'iterations')
     assert_positive_integer(iterations_per_step, 'iterations_per_step')
     assert type(plot_steps) == bool, 'Invalid type of parameter plot_steps; should be boolean.'
-    for t in range(iterations):
-        # Forward pass: Compute predicted y by passing x to the model
-        y_predicted = model(original_image)
 
-        # Compute the loss
-        if not use_border:
-            loss = criterion(y_predicted[x_1:x_2, y_1:y_2], target_image)
-        else:
-            loss = criterion(y_predicted, target_image)
+    # Learning loop
+    start = time.time()
+    for e in range(epochs):
+        print("\nEpoch %r" % (e+1))
 
-        if t % iterations_per_step == 0:
-            print("Iteration %r" % t, "Loss %r" % round(scale(loss.item()), 2))
-            if plot_steps:
-                plot_image(y_predicted, 'Predicted image at iteration %r' % t, show=False)
-                plot_image(y, 'Target image', show=False)
-                plot_image(model.structural_element, 'Learned structural element', v_min=-10, v_max=20)
+        # Optimizer
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
+        for t in tqdm(range(iterations)):
+            # Forward pass: Compute predicted y by passing x to the model
+            y_predicted = model(original_image)
 
-        # Zero gradients, perform a backward pass, and update the weights.
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            # Compute the loss
+            if not use_border:
+                loss = criterion(y_predicted[x_1:x_2, y_1:y_2], target_image)
+            else:
+                loss = criterion(y_predicted, target_image)
+
+            if t % iterations_per_step == 0:
+                print("Iteration %r" % t, "Loss %r" % round(scale(loss.item()), 2))
+                if plot_steps:
+                    plot_image(y_predicted, 'Predicted image at iteration %r' % t, show=False)
+                    plot_image(y, 'Target image', show=False)
+                    plot_image(model.structural_element, 'Learned structural element', v_min=-10, v_max=20)
+
+            # Zero gradients, perform a backward pass, and update the weights.
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        if plot_epoch:
+            y_predicted = model(original_image)
+            plot_image(y_predicted, 'Predicted image at the end of the epoch %r' % (e+1), show=False)
+            plot_image(y, 'Target image', show=False)
+            plot_image(model.structural_element, 'Learned structural element', v_min=-10, v_max=20)
 
     # Last prediction
     y_predicted = model(original_image)
@@ -246,13 +257,24 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
 
 if __name__ == '__main__':
     from imageio import imread
-    from os.path import join
+    from os.path import join, isfile
+    from os import listdir
     from utils import to_greyscale
 
-    # Image
-    _image = imread(join('..', 'images', '17051.jpg'))
-    _image = to_greyscale(np.array(_image), warn=False)
-    _image_tensor = torch.tensor(_image, device=DEVICE)
+    # Images
+    folder = join('..', 'images', 'dataset')
+    _images = listdir(folder)
+
+    _images_tensor = torch.empty((24, 512, 512), device=DEVICE, dtype=torch.float32)
+
+    i = 0
+    for name in _images:
+        path = join(folder, name)
+        if isfile(path):
+            _image = imread(path)
+            _image = to_greyscale(np.array(_image), warn=False)
+            _images_tensor[i, :, :] = torch.tensor(_image, device=DEVICE, dtype=torch.float32)
+            i += 1
 
     # Operation parameters
     _operation_str = 'dilation'
@@ -267,13 +289,16 @@ if __name__ == '__main__':
     _model_origin = (7, 7)
 
     # Learning parameters
-    _iterations = 1000 * 10
-    _iterations_per_step = 500
-    _plot_steps = True
+    _epochs = 10
+    _iterations = 1000
+    _iterations_per_step = 100
+    _plot_steps = False
+    _plot_epochs = True
     _loss_scale = 'lin'
-    _learning_rate = 9e-1
+    _learning_rate = 5e-1
+    _use_border = False
 
     # Learning
-    test_learning(_image_tensor, _operation_str, _structural_element_form, _structural_element_shape,
-                  _structural_element_origin, _model_shape, _model_origin, _iterations, _iterations_per_step,
-                  _plot_steps, _loss_scale, True, _learning_rate)
+    test_learning(_images_tensor, _operation_str, _structural_element_form, _structural_element_shape,
+                  _structural_element_origin, _model_shape, _model_origin, _epochs, _iterations, _iterations_per_step,
+                  _plot_steps, _plot_epochs, _loss_scale, _use_border, _learning_rate)

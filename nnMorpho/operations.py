@@ -114,10 +114,10 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
         for dim in range(structural_element.ndim):
             input_unfolded = input_unfolded.unfold(dim, structural_element.shape[dim], 1)
 
-        # Sums
+        # Differences
         result = input_unfolded - structural_element
 
-        # Take the maximum
+        # Take the minimum
         for dim in range(structural_element.ndim):
             result, _ = torch.min(result, dim=-1)
     else:
