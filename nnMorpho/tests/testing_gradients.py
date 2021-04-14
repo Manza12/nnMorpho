@@ -12,7 +12,7 @@ _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
 _input_tensor = torch.tensor(_input_array, device='cuda:0')
 _strel_target = torch.tensor([[0., 1., 0.], [1., 2., 1.], [0., 1., 0.]], device='cuda:0')
 _target_image = erosion(_input_tensor, _strel_target, (1, 1), 0)
-_strel_tensor = torch.zeros((3, 3), device='cuda:0')
+_strel_tensor = torch.rand((3, 3), device='cuda:0')
 # _strel_tensor[0, 0] = -1
 # _strel_tensor[0, 1] = -1
 _strel_tensor.requires_grad = True
@@ -42,9 +42,6 @@ def old_erosion(input_tensor, strel, origin, border_value):
 
 
 if __name__ == '__main__':
-
-    # variable = Variable(_strel_tensor, requires_grad=True)
-
     eroded_image = ErosionFunction.apply(_input_tensor, _strel_tensor, (1, 1), 255)
     eroded_image_old = old_erosion(_input_tensor, _strel_tensor_old, (1, 1), 255)
     eroded_image_python = ErosionPythonFunction.apply(_input_tensor, _strel_tensor_python, (1, 1), 255)

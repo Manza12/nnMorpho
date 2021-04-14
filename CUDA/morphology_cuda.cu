@@ -165,57 +165,12 @@ __global__ void erosion_backward_cuda_kernel(
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 	
-	// Create and fill to zero shared memory
-	extern __shared__ float grad_input_shared[];
-	
-	for (int j = threadIdx.y; j < grad_input_height; j += blockDim.y) {
-		for (int i = threadIdx.x; i < grad_input_width; i += blockDim.x) {
-			grad_input_shared[j * grad_input_width + i] = 0;
-		}
-	}
-	
-	__syncthreads();
-	
-	// Plot shared memory
-	if (x == 0 && y == 0) {
-		// printf("(%d, %d)\n", blockDim.x, blockDim.y);
-		for (int j = 0; j < grad_input_height; j++) {
-			for (int i = 0; i < grad_input_width; i++) {
-				printf("%.0e ", grad_input_shared[j * grad_input_width + i]);
-			}
-			printf("\n");
-		}
-	}
-	
-	// Update shared memory with gradients of the output
+	// Add the value to the grad_input_accessor
 	if (x < grad_output_width && y < grad_output_height) {
 		short index_i = indexes_accessor[x][y][0];
 		short index_j = indexes_accessor[x][y][1];
-		printf("Adding %.6f to %.6f at index (%d, %d)\n", -grad_output_accessor[x][y], grad_input_shared[index_j * grad_input_width + index_i], index_i, index_j);
-		grad_input_shared[index_j * grad_input_width + index_i] -= grad_output_accessor[x][y];
-		// printf("Current sum: %.6f\n", grad_input_accessor[index_i][index_j]);
+		atomicAdd(&grad_input_accessor[index_i][index_j], -grad_output_accessor[x][y]);
 	}
-	
-	__syncthreads();
-	
-	// Plot shared memory
-	if (x == 0 && y == 0) {
-		// printf("(%d, %d)\n", blockDim.x, blockDim.y);
-		for (int j = 0; j < grad_input_height; j++) {
-			for (int i = 0; i < grad_input_width; i++) {
-				printf("%.0e ", grad_input_shared[j * grad_input_width + i]);
-			}
-			printf("\n");
-		}
-	}
-	
-	// Transfer the shared memory into the grad_input accessor
-	for (int j = threadIdx.y; j < grad_input_height; j += blockDim.y) {
-		for (int i = threadIdx.x; i < grad_input_width; i += blockDim.x) {
-			grad_input_accessor[i][j] = grad_input_shared[j * grad_input_width + i];
-		}
-	}
-		
 }
 
 __global__ void dilation_forward_cuda_kernel(
@@ -254,8 +209,8 @@ __global__ void dilation_forward_cuda_kernel(
 				candidate = input_tensor[x + i][y + j] + strel_tensor[strel_width - (i + 1)][strel_height - (j + 1)];
 				if (candidate > value) {
 					value = candidate;
-					index_i = i;
-					index_j = j;
+					index_i = strel_width - (i + 1);
+					index_j = strel_height - (j + 1);
 				}
 			}
 		}
@@ -287,11 +242,11 @@ __global__ void dilation_backward_cuda_kernel(
 	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
 	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
 	
-	// Compute the value of output[y][x]
+	// Add the value to the grad_input_accessor
 	if (x < grad_output_width && y < grad_output_height) {
 		short index_i = indexes_accessor[x][y][0];
 		short index_j = indexes_accessor[x][y][1];
-		grad_input_accessor[index_i][index_j] += grad_output_accessor[x][y];
+		atomicAdd(&grad_input_accessor[index_i][index_j], grad_output_accessor[x][y]);
 	}
 }
 
@@ -458,7 +413,7 @@ torch::Tensor erosion_backward_cuda(
 	auto grad_input_accessor = grad_input.packed_accessor32<float,2>();
 
 	// Launch of the kernel
-	erosion_backward_cuda_kernel<<<grid_size, block_size, strel_width * strel_height * sizeof(float)>>>(grad_output_accessor, indexes_accessor, grad_input_accessor);
+	erosion_backward_cuda_kernel<<<grid_size, block_size>>>(grad_output_accessor, indexes_accessor, grad_input_accessor);
 	
   	return grad_input;
 }
