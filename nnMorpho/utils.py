@@ -1,8 +1,4 @@
-from nnMorpho.parameters import *
-
-
-def name_var(var) -> str:
-    return f'{var=}'.split('=')[0]
+from parameters import *
 
 
 def assert_positive_integer(variable, name):
@@ -104,11 +100,16 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     plt.figure()
 
     try:
+        cmap = kwargs['cmap']
+    except KeyError:
+        cmap = 'gray'
+
+    try:
         v_min = kwargs['v_min']
         v_max = kwargs['v_max']
-        plt.imshow(tensor.cpu().detach().numpy(), cmap='hot', vmin=v_min, vmax=v_max)
+        plt.imshow(tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
     except KeyError:
-        plt.imshow(tensor.cpu().detach().numpy(), cmap='hot')
+        plt.imshow(tensor.cpu().detach().numpy(), cmap=cmap)
 
     plt.title(title)
     if origin:
@@ -127,3 +128,11 @@ def to_greyscale(image: np.ndarray, warn=True):
             if warn:
                 warnings.warn('Discarding transparency when converting to grayscale.')
             return image[:, :, :3].mean(2)
+
+
+def lin_scale(value):
+    return value
+
+
+def log_scale(value):
+    return np.log10(value)
