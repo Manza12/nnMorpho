@@ -97,7 +97,12 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
 
 def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     import matplotlib.pyplot as plt
-    plt.figure()
+
+    try:
+        name = kwargs['name']
+        plt.figure(num=name)
+    except KeyError:
+        plt.figure()
 
     try:
         cmap = kwargs['cmap']

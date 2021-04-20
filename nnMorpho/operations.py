@@ -395,7 +395,7 @@ if __name__ == '__main__':
                 plot_image(_output_tensor_cuda, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
                            cmap='gray', v_min=0, v_max=255)
 
-                error = np.matrix.sum(np.abs(_output_tensor_cuda.cpu().numpy() - _output_array_scipy))
+                error = torch.norm(_output_tensor_cuda - torch.tensor(_output_array_scipy, device=_device), p=1).item()
                 print("Error Scipy/nnMorpho =", error)
             else:
                 sta = time.time()
@@ -407,7 +407,7 @@ if __name__ == '__main__':
                 plot_image(_output_tensor, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
                            cmap='gray', v_min=0, v_max=255)
 
-                error = np.matrix.sum(np.abs(_output_tensor.numpy() - _output_array_scipy))
+                error = torch.norm(_output_tensor - torch.tensor(_output_array_scipy), p=1).item()
                 print("Error Scipy/nnMorpho =", error)
 
     if _show_images:
