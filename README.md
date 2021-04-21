@@ -13,8 +13,6 @@ For the moment, only 2D tensors are accepted as input for the operations. Next s
 
 In the future, it is intended to be able to accept n-dimensional tensors as input.
 
-Another feature that will be soon incorporated is the one-dimension-long erosion; further explanation of this will be furnished when implemented.
-
 It is important to recall that nnMorpho is designed (for the moment) for being used with a GPU; the efficient code is implemented in CUDA. Nonetheless, efficient CPU implementations will be added when possible; it is intented to be implemented with [SIMD](https://en.wikipedia.org/wiki/SIMD) flow. Currently, the CPU implementations are done by means of the high-memory-consuming [torch.Tensor.unfold](pytorch.org/docs/stable/tensors.html) strategy.
 
 ## Installation

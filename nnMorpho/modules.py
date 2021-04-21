@@ -1,6 +1,6 @@
-from parameters import *
-from functions import ErosionFunction, DilationFunction
-from operations import fill_border
+from nnMorpho.parameters import *
+from nnMorpho.functions import ErosionFunction, DilationFunction
+from nnMorpho.operations import fill_border
 
 
 # Todo: check parameters OK when initializing modules

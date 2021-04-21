@@ -1,4 +1,4 @@
-from parameters import *
+from nnMorpho.parameters import *
 
 
 class ErosionFunction(torch.autograd.Function):

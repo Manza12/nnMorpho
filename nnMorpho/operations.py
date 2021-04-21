@@ -1,4 +1,4 @@
-from parameters import *
+from nnMorpho.parameters import *
 
 
 def pad_tensor(input_tensor, origin, structural_element, border_value):
