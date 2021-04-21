@@ -1,7 +1,36 @@
 # nnMorpho
 A library for general purpose Mathematical Morphology.
 
-nnMorpho implements tools of greyscale mathematical morphology. It uses the [PyTorch](https://pytorch.org/) framework to take advantage of CUDA tensors and perform GPU computations for improved speed. 
+nnMorpho implements tools of greyscale mathematical morphology. It uses the [PyTorch](https://pytorch.org/) framework to take advantage of CUDA tensors and perform GPU computations for improved speed.
 
-## New in version 0.2.0
-This version is caracterized by an enourmous improvement in the memory usage of the operations: instead of using the [torch.nn.functional.unfold](https://pytorch.org/docs/stable/nn.functional.html#unfold) method, we use the view-like method [torch.Tensor.unfold](pytorch.org/docs/stable/tensors.html). This allows us to both improve in memory usage and in customability of the operations, allowing arbitrary dimensional inputs and structural elements.
+Currently, the operations implemented are:
+- Erosion
+- Dilation
+- Opening
+- Closing
+
+For the moment, only 2D tensors are accepted as input for the operations. Next step should be to incorporate batched and/or multichannel tensors. 
+
+In the future, it is intended to be able to accept n-dimensional tensors as input.
+
+Another feature that will be soon incorporated is the one-dimension-long erosion; further explanation of this will be furnished when implemented.
+
+It is important to recall that nnMorpho is designed (for the moment) for being used with a GPU; the efficient code is implemented in CUDA. Nonetheless, efficient CPU implementations will be added when possible; it is intented to be implemented with [SIMD](https://en.wikipedia.org/wiki/SIMD) flow. Currently, the CPU implementations are done by means of the high-memory-consuming [torch.Tensor.unfold](pytorch.org/docs/stable/tensors.html) strategy.
+
+## Installation
+As usual, nnMorpho can be installed with 
+```bash
+pip install nnMorpho
+```
+
+However, you should install independently the CUDA module ```morphology_cuda``` for GPU computations.
+
+To do that, download the CUDA folder from the project (you can clone the project for instance), navigate to this folder from a terminal and run the ```install.sh``` or ```install.bat``` script (depending on if you use Unix (Linux/Mac) or Windows operating system). If you use Unix, you may need to edit the script to select your installation folder for Python in the --prefix parameter for the setup.py install. 
+
+### New in version 1.0.0
+This version is first one that uses pure CUDA code to implement the operations. This represents an enourmous improvement in the memory usage of the operations: instead of using the [torch.nn.functional.unfold](https://pytorch.org/docs/stable/nn.functional.html#unfold) method or the view-like method [torch.Tensor.unfold](pytorch.org/docs/stable/tensors.html), this version uses pure CUDA code to perform both raw operations and forward and backward implementations for the autograd engine. This allows to both improve the memory usage and the customability of the operations.
+
+In this version, three modules are the main ones:
+- functions.py: here, the PyTorch functions are implemented with forward and backward methods for autograd.
+- modules.py: here, the PyTorch modules are implemented with the structural element being the parameter to learn.
+- operations.py: here, the raw operations are implemented for PyTorch methods.
