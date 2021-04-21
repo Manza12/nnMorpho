@@ -266,7 +266,7 @@ torch::Tensor erosion_cuda(
 	const auto output_height = input_height - strel_height + 1;
   	
   	// Initialize output tensor
-  	auto options = torch::TensorOptions().device(torch::kCUDA, 0);
+  	auto options = torch::TensorOptions().device(input_tensor.device());
   	torch::Tensor output_tensor = torch::zeros({output_width, output_height}, options);
   	
   	// Block & Grid parameters
@@ -306,7 +306,7 @@ torch::Tensor dilation_cuda(
 	const auto output_height = input_height - strel_height + 1;
   	
   	// Initialize output tensor
-  	auto options = torch::TensorOptions().device(torch::kCUDA, 0);
+  	auto options = torch::TensorOptions().device(input_tensor.device());
   	torch::Tensor output_tensor = torch::zeros({output_width, output_height}, options);
   	
   	// Block & Grid parameters
@@ -346,11 +346,11 @@ std::vector<torch::Tensor> erosion_forward_cuda(
 	const auto output_height = input_height - strel_height + 1;
   	
   	// Initialize output tensor
-  	auto options_output = torch::TensorOptions().device(torch::kCUDA, 0);
+  	auto options_output = torch::TensorOptions().device(input_tensor.device());
   	torch::Tensor output_tensor = torch::zeros({output_width, output_height}, options_output);
   	
   	// Initialize indexes
-  	auto options_indexes = torch::TensorOptions().device(torch::kCUDA, 0).dtype(torch::kInt16);
+  	auto options_indexes = torch::TensorOptions().device(input_tensor.device()).dtype(torch::kInt16);
   	torch::Tensor indexes = torch::zeros({output_width, output_height, 2}, options_indexes);
   	
   	// Block & Grid parameters
@@ -393,7 +393,7 @@ torch::Tensor erosion_backward_cuda(
   	const short strel_height = strel_ptr[1];
 	
   	// Initialize output tensor
-  	auto options = torch::TensorOptions().device(torch::kCUDA, 0);
+  	auto options = torch::TensorOptions().device(grad_output.device());
   	torch::Tensor grad_input = torch::zeros({strel_width, strel_height}, options);
   	
   	// Block & Grid parameters
@@ -433,11 +433,11 @@ std::vector<torch::Tensor> dilation_forward_cuda(
 	const auto output_height = input_height - strel_height + 1;
   	
   	// Initialize output tensor
-  	auto options_output = torch::TensorOptions().device(torch::kCUDA, 0);
+  	auto options_output = torch::TensorOptions().device(input_tensor.device());
   	torch::Tensor output_tensor = torch::zeros({output_width, output_height}, options_output);
   	
   	// Initialize indexes
-  	auto options_indexes = torch::TensorOptions().device(torch::kCUDA, 0).dtype(torch::kInt16);
+  	auto options_indexes = torch::TensorOptions().device(input_tensor.device()).dtype(torch::kInt16);
   	torch::Tensor indexes = torch::zeros({output_width, output_height, 2}, options_indexes);
   	
   	// Block & Grid parameters
@@ -480,7 +480,7 @@ torch::Tensor dilation_backward_cuda(
   	const short strel_height = strel_ptr[1];
 	
   	// Initialize output tensor
-  	auto options = torch::TensorOptions().device(torch::kCUDA, 0);
+  	auto options = torch::TensorOptions().device(grad_output.device());
   	torch::Tensor grad_input = torch::zeros({strel_width, strel_height}, options);
   	
   	// Block & Grid parameters
