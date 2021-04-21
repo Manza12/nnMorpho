@@ -1,4 +1,4 @@
-from parameters import *
+from nnMorpho.parameters import *
 
 
 def assert_positive_integer(variable, name):
