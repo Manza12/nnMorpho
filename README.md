@@ -34,3 +34,7 @@ In this version, three modules are the main ones:
 - functions.py: here, the PyTorch functions are implemented with forward and backward methods for autograd.
 - modules.py: here, the PyTorch modules are implemented with the structural element being the parameter to learn.
 - operations.py: here, the raw operations are implemented for PyTorch methods.
+
+### New in version 1.0.1
+- Added partial erosion: this type of erosion is a 2D erosion done with a 1D structural element that varies in the complementary dimension. For instance, if you have a 256x256 image, you set a 5x256 structural element that slides in the first dimension and varies in the second.
+- Fixed devices problems raised by [s-rog](https://github.com/s-rog) in the CUDA code (see Issue [#1](https://github.com/Manza12/nnMorpho/issues/1)).
