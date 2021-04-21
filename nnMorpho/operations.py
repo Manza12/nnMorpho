@@ -28,6 +28,25 @@ def check_parameters(input_tensor, structural_element, origin, border_value):
                'Invalid origin. Structural element and input should intersect at least in one point.'
 
 
+def check_parameters_partial(input_tensor, structural_element, origin, border_value):
+    # Check types
+    assert type(input_tensor) == torch.Tensor, 'Input type should be torch.Tensor.'
+    assert type(structural_element) == torch.Tensor, 'Structural element type should be torch.Tensor.'
+    assert type(origin) in [tuple, List[int]], 'Origin type should be tuple or list[int].'
+    assert type(border_value) in [int, float, str], 'Border value type should be int, float or string.'
+
+    # Check dimension of input and structural element are compatible
+    assert input_tensor.ndim == structural_element.ndim, "Input's dimension should be the same as the structural " \
+                                                         "element's ones"
+    assert input_tensor.shape[0] == structural_element.shape[0], "First dimension should coincide between input and " \
+                                                                 "structural element."
+
+    # Check origin
+    assert len(origin) == 1, "Only origin for the second dimension is needed."
+    assert - input_tensor.shape[1] < origin[0] < structural_element.shape[1] + input_tensor.shape[1] - 1, \
+        'Invalid origin. Structural element and input should intersect at least in one point.'
+
+
 def fill_border(border_value, operation):
     if type(border_value) == str:
         if border_value == 'geodesic':
@@ -122,6 +141,52 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
             result, _ = torch.min(result, dim=-1)
     else:
         result = morphology_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
+
+    return result
+
+
+def partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor,
+                    origin: Union[tuple, List[int]] = (0, 0), border_value: Union[int, float, str] = 'geodesic'):
+    # ToDo: Improve the documentation
+    """ Partial erosion is a new operation that does a one-dimension-long erosion.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+        :param structural_element: torch.Tensor
+        :param origin: tuple, List[int]
+        :param border_value: int, float, str
+
+        Outputs
+        -------
+        :return: torch.Tensor
+    """
+    # Check parameters
+    check_parameters_partial(input_tensor, structural_element, origin, border_value)
+
+    # Fill border value if needed
+    border_value = fill_border(border_value, 'erosion')
+
+    # Convert tensor to float if needed
+    input_tensor = convert_float(input_tensor)
+
+    # Compute erosion
+    return _partial_erosion(input_tensor, structural_element, origin, border_value)
+
+
+def _partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]],
+                     border_value: Union[int, float]):
+    """ Computation of the partial erosion
+        See :partial_erosion for information about inputs, parameters and outputs.
+    """
+    # Pad input
+    pad_list = [origin[0], structural_element.shape[1] - origin[0] - 1]
+    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
+
+    if str(input_tensor.device) == 'cpu':
+        raise NotImplementedError("CPU computation is not implemented yet for partial erosion.")
+    else:
+        result = morphology_cuda.partial_erosion(input_pad, structural_element, BLOCK_SHAPE)
 
     return result
 
@@ -291,7 +356,7 @@ def _closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
                     structural_element, origin, border_value_erosion)
 
 
-if __name__ == '__main__':
+def test_common_operations():
     # Test Operations
     print("Testing the operations of nnMorpho respect to Scipy")
 
@@ -336,7 +401,6 @@ if __name__ == '__main__':
     _operations_sp = [grey_erosion, grey_dilation, grey_opening, grey_closing]
 
     # Loop
-
     for im in _images:
         print("\n----\nTreating image", im)
 
@@ -412,3 +476,90 @@ if __name__ == '__main__':
 
     if _show_images:
         show()
+
+
+def test_partial_erosion():
+    # Test partial erosion
+    print("Testing the partial erosion")
+
+    # Parameters
+    _show_images = True
+    _strel_dim = tuple([5])
+    _origin = tuple([_strel_dim[0] // 2])
+    _border_value = 'geodesic'
+    _device = 'cuda'
+    _device = torch.device("cuda:0" if torch.cuda.is_available() and _device == 'cuda' else "cpu")
+
+    print("\nParameters:")
+    print("Showing images:", _show_images)
+    print("Structural element dimension:", _strel_dim)
+    print("Origin:", _origin)
+    print("Border value:", _border_value)
+    print("Device:", _device)
+
+    # Start CUDA
+    if not str(_device) == 'cpu':
+        print("\nStarting CUDA")
+        sta = time.time()
+        _starter = torch.zeros((1, 1), dtype=torch.float32, device=_device)
+        end = time.time()
+        print("Time for start CUDA:", round(end - sta, 6), "seconds")
+
+    # Inputs
+    from imageio import imread
+    from os.path import join
+    from utils import to_greyscale, plot_image
+
+    _path = join('..', 'images', 'geometry')
+    _image = 'vertical_line.png'
+
+    print("\n----\nTreating image", _image)
+
+    _image = imread(join(_path, _image))
+    _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+    _input_tensor = torch.tensor(_input_array)
+
+    print("Input size:", _input_array.shape)
+
+    plot_image(_input_tensor, 'Input image', show=False, cmap='gray', v_min=0, v_max=255)
+
+    # Structural element
+    _strel_dim = [_input_array.shape[0], _strel_dim[0]]
+    _strel_tensor = torch.zeros(_strel_dim, dtype=torch.float32)
+    _strel_array = _strel_tensor.numpy()
+
+    # Memory transfer
+    sta = time.time()
+    _input_tensor_cuda = _input_tensor.to(_device)
+    _strel_tensor_cuda = _strel_tensor.to(_device)
+    end = time.time()
+    time_memory_transfer = end - sta
+    print("Time for Memory transfer to GPU:", round(time_memory_transfer, 6), "seconds")
+
+    # Partial erosion width
+    print("Partial erosion width")
+    sta = time.time()
+    _output_tensor_cuda = partial_erosion(_input_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
+    end = time.time()
+    time_computation = end - sta
+    print("Time for computation:", round(time_computation, 6), "seconds")
+    print("Time for partial erosion:", round(time_computation + time_memory_transfer, 6), "seconds")
+
+    plot_image(_output_tensor_cuda, 'Output image - width', show=False, cmap='gray', v_min=0, v_max=255)
+
+    # Partial erosion height
+    print("Partial erosion height")
+    sta = time.time()
+    _output_tensor_cuda = partial_erosion(_input_tensor_cuda.transpose(0, 1), _strel_tensor_cuda, _origin,
+                                          _border_value)
+    end = time.time()
+    time_computation = end - sta
+    print("Time for computation:", round(time_computation, 6), "seconds")
+    print("Time for partial erosion:", round(time_computation + time_memory_transfer, 6), "seconds")
+
+    plot_image(_output_tensor_cuda.transpose(0, 1), 'Output image - height', show=True, cmap='gray', v_min=0, v_max=255)
+
+
+if __name__ == '__main__':
+    # test_common_operations()
+    test_partial_erosion()

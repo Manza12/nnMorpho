@@ -1,1 +1,1 @@
-python3 setup.py install --prefix=/home/gon/.local
+python3 setup.py install --prefix=~/.local
