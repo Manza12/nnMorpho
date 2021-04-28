@@ -123,6 +123,100 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
         plt.show()
 
 
+def plot_images_side_by_side(tensor_1: torch.Tensor, tensor_2: torch.Tensor, title, show=True, **kwargs):
+    import matplotlib.pyplot as plt
+
+    try:
+        name = kwargs['name']
+        fig, (ax_1, ax_2) = plt.subplots(1, 2)
+        fig.name(name)
+    except KeyError:
+        fig, (ax_1, ax_2) = plt.subplots(1, 2)
+
+    try:
+        cmap = kwargs['cmap']
+    except KeyError:
+        cmap = 'gray'
+
+    try:
+        v_min = kwargs['v_min']
+        v_max = kwargs['v_max']
+        ax_1.imshow(tensor_1.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+        ax_2.imshow(tensor_2.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+    except KeyError:
+        ax_1.imshow(tensor_1.cpu().detach().numpy(), cmap=cmap)
+        ax_2.imshow(tensor_2.cpu().detach().numpy(), cmap=cmap)
+
+    fig.suptitle(title)
+
+    if show:
+        plt.show()
+
+
+def plot_four_operations(input_tensor: torch.Tensor, eroded_tensor: torch.Tensor, dilated_tensor: torch.Tensor,
+                         opened_tensor: torch.Tensor, closed_tensor: torch.Tensor, title, show=True, **kwargs):
+    import matplotlib.pyplot as plt
+
+    try:
+        name = kwargs['name']
+        fig = plt.figure(name)
+    except KeyError:
+        fig = plt.figure()
+
+    gs = fig.add_gridspec(3, 2)
+
+    ax_input = fig.add_subplot(gs[0, :])
+    ax_input.set_title('Input image')
+    ax_input.set_xticks([])
+    ax_input.set_yticks([])
+
+    ax_erosion = fig.add_subplot(gs[1, 0])
+    ax_erosion.set_title('Eroded image')
+    ax_erosion.set_xticks([])
+    ax_erosion.set_yticks([])
+
+    ax_dilation = fig.add_subplot(gs[1, 1])
+    ax_dilation.set_title('Dilated image')
+    ax_dilation.set_xticks([])
+    ax_dilation.set_yticks([])
+
+    ax_opening = fig.add_subplot(gs[2, 0])
+    ax_opening.set_title('Opened image')
+    ax_opening.set_xticks([])
+    ax_opening.set_yticks([])
+
+    ax_closing = fig.add_subplot(gs[2, 1])
+    ax_closing.set_title('Closed image')
+    ax_closing.set_xticks([])
+    ax_closing.set_yticks([])
+
+    try:
+        cmap = kwargs['cmap']
+    except KeyError:
+        cmap = 'gray'
+
+    try:
+        v_min = kwargs['v_min']
+        v_max = kwargs['v_max']
+
+        ax_input.imshow(input_tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+        ax_erosion.imshow(eroded_tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+        ax_dilation.imshow(dilated_tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+        ax_opening.imshow(opened_tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+        ax_closing.imshow(closed_tensor.cpu().detach().numpy(), cmap=cmap, vmin=v_min, vmax=v_max)
+    except KeyError:
+        ax_input.imshow(input_tensor.cpu().detach().numpy(), cmap=cmap)
+        ax_erosion.imshow(eroded_tensor.cpu().detach().numpy(), cmap=cmap)
+        ax_dilation.imshow(dilated_tensor.cpu().detach().numpy(), cmap=cmap)
+        ax_opening.imshow(opened_tensor.cpu().detach().numpy(), cmap=cmap)
+        ax_closing.imshow(closed_tensor.cpu().detach().numpy(), cmap=cmap)
+
+    fig.suptitle(title)
+
+    if show:
+        plt.show()
+
+
 def to_greyscale(image: np.ndarray, warn=True):
     if image.ndim == 2:
         return image

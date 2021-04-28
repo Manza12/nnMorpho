@@ -20,7 +20,7 @@ classes = [Tensor, Module, Union, List, Any]
 NoneType = type(None)
 
 # Constants
-INF = 1e20
+INF = torch.finfo(torch.float32).max
 BLOCK_SHAPE = torch.tensor((32, 32, 1), dtype=torch.int16)
 
 # Device

@@ -16,9 +16,11 @@ def check_parameters(input_tensor, structural_element, origin, border_value):
     assert type(origin) in [tuple, List[int]], 'Origin type should be tuple or list[int].'
     assert type(border_value) in [int, float, str], 'Border value type should be int, float or string.'
 
-    # Check dimension of input and structural element are compatible
+    # Check dimension of input and structural element are compatible and compatible with the origin
     assert input_tensor.ndim >= structural_element.ndim, "Input's dimension should be bigger than the structural " \
                                                          "element's one"
+    assert structural_element.ndim == len(origin), "The length of the origin should be the same as the number of " \
+                                                   "dimensions of the structural element."
     dim_shift = input_tensor.ndim - structural_element.ndim
 
     # Check origin
@@ -122,16 +124,16 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     """ Computation of the erosion
         See :erosion for information about inputs, parameters and outputs.
     """
-    # Pad input
-    pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
-                origin[0], structural_element.shape[0] - origin[0] - 1]
-    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     if str(input_tensor.device) == 'cpu':
+        # Pad input
+        input_pad = pad_tensor(input_tensor, origin, structural_element, border_value)
+
         # Unfold the input
         input_unfolded = input_pad
+        dim_shift = input_tensor.ndim - structural_element.ndim
         for dim in range(structural_element.ndim):
-            input_unfolded = input_unfolded.unfold(dim, structural_element.shape[dim], 1)
+            input_unfolded = input_unfolded.unfold(dim_shift + dim, structural_element.shape[dim], 1)
 
         # Differences
         result = input_unfolded - structural_element
@@ -140,7 +142,25 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
         for dim in range(structural_element.ndim):
             result, _ = torch.min(result, dim=-1)
     else:
-        result = morphology_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
+        if structural_element.ndim == 2:
+            # Pad input
+            pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
+                        origin[0], structural_element.shape[0] - origin[0] - 1]
+            input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
+
+            if input_tensor.ndim - structural_element.ndim == 0:
+                result = morphology_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structural_element.ndim == 1:
+                result = morphology_cuda.erosion_batched(input_pad, structural_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structural_element.ndim == 2:
+                result = morphology_cuda.erosion_batched_channel(input_pad, structural_element, BLOCK_SHAPE)
+            else:
+                raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
+                                          "- 2D tensors of the form (H, W)\n"
+                                          "- 3D tensors of the form (B, H, W)"
+                                          "- 4D tensors of the form (B, C, H, W)")
+        else:
+            raise NotImplementedError("Currently nnMorpho only supports 2D erosion.")
 
     return result
 
@@ -235,25 +255,43 @@ def _dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, orig
     """ Computation of the dilation
         See :dilation for information about input, parameters and output.
     """
-    # Pad input
-    pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
-                origin[0], structural_element.shape[0] - origin[0] - 1]
-    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     if str(input_tensor.device) == 'cpu':
+        # Pad input
+        input_pad = pad_tensor(input_tensor, origin, structural_element, border_value)
+
         # Unfold the input
         input_unfolded = input_pad
+        dim_shift = input_tensor.ndim - structural_element.ndim
         for dim in range(structural_element.ndim):
-            input_unfolded = input_unfolded.unfold(dim, structural_element.shape[dim], 1)
+            input_unfolded = input_unfolded.unfold(dim + dim_shift, structural_element.shape[dim], 1)
 
         # Sums
-        result = input_unfolded + structural_element
+        result = input_unfolded + torch.flip(structural_element, list(range(structural_element.ndim)))
 
         # Take the maximum
         for dim in range(structural_element.ndim):
             result, _ = torch.max(result, dim=-1)
     else:
-        result = morphology_cuda.dilation(input_pad, structural_element, BLOCK_SHAPE)
+        if structural_element.ndim == 2:
+            # Pad input
+            pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
+                        origin[0], structural_element.shape[0] - origin[0] - 1]
+            input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
+
+            if input_tensor.ndim - structural_element.ndim == 0:
+                result = morphology_cuda.dilation(input_pad, structural_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structural_element.ndim == 1:
+                result = morphology_cuda.dilation_batched(input_pad, structural_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structural_element.ndim == 2:
+                result = morphology_cuda.dilation_batched_channel(input_pad, structural_element, BLOCK_SHAPE)
+            else:
+                raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
+                                          "- 2D tensors of the form (H, W)\n"
+                                          "- 3D tensors of the form (B, H, W)"
+                                          "- 4D tensors of the form (B, C, H, W)")
+        else:
+            raise NotImplementedError("Currently nnMorpho only supports 2D erosion.")
 
     return result
 
@@ -389,7 +427,7 @@ def test_common_operations():
     from imageio import imread
     from os.path import join, isfile
     from os import listdir
-    from utils import to_greyscale, plot_image
+    from nnMorpho.utils import to_greyscale, plot_image
     from scipy.ndimage.morphology import grey_erosion, grey_dilation, grey_opening, grey_closing
     from matplotlib.pyplot import show
 
@@ -430,7 +468,8 @@ def test_common_operations():
             _output_array_scipy = _operation_sp(_input_array, structure=_strel_array, mode='constant',
                                                 cval=_border_value)
             end = time.time()
-            print("Time for Scipy:", round(end - sta, 6), "seconds")
+            time_scipy = end - sta
+            print("Time for Scipy:", round(time_scipy, 6), "seconds")
 
             _output_tensor_scipy = torch.tensor(_output_array_scipy)
             plot_image(_output_tensor_scipy, 'Image after ' + _operation.__name__ + ' - Scipy', show=False, cmap='gray',
@@ -454,13 +493,17 @@ def test_common_operations():
                 end = time.time()
                 time_computation = end - sta
                 print("Time for computation:", round(time_computation, 6), "seconds")
-                print("Time for nnMorpho:", round(time_computation + time_memory_transfer, 6), "seconds")
+                time_morpho = time_computation + time_memory_transfer
+                print("Time for nnMorpho:", round(time_morpho, 6), "seconds")
 
                 plot_image(_output_tensor_cuda, 'Image after ' + _operation.__name__ + ' - nnMorpho', show=False,
                            cmap='gray', v_min=0, v_max=255)
 
                 error = torch.norm(_output_tensor_cuda - torch.tensor(_output_array_scipy, device=_device), p=1).item()
                 print("Error Scipy/nnMorpho =", error)
+
+                if not time_morpho == 0:
+                    print("Improved speed: x" + str(round(time_scipy / time_morpho)))
             else:
                 sta = time.time()
                 _output_tensor = erosion(_input_tensor, _strel_tensor, origin=_origin,
@@ -473,6 +516,234 @@ def test_common_operations():
 
                 error = torch.norm(_output_tensor - torch.tensor(_output_array_scipy), p=1).item()
                 print("Error Scipy/nnMorpho =", error)
+
+    if _show_images:
+        show()
+
+
+def test_batched_operations():
+    # Test Operations
+    print("Testing the batched operations of nnMorpho respect to Scipy")
+
+    # Parameters
+    _show_images = True
+    _strel_dim = (11, 11)
+    _origin = (_strel_dim[0] // 2, _strel_dim[1] // 2)
+    _device = 'cuda'
+    _device = torch.device("cuda:0" if torch.cuda.is_available() and _device == 'cuda' else "cpu")
+
+    print("\nParameters:")
+    print("Showing images:", _show_images)
+    print("Structural element dimension:", _strel_dim)
+    print("Origin:", _origin)
+    print("Device:", _device)
+
+    # Structural element
+    _strel_tensor = torch.rand(_strel_dim, dtype=torch.float32) * 12 - 6
+    _strel_array = _strel_tensor.numpy()
+
+    # Start CUDA
+    if not str(_device) == 'cpu':
+        print("\nStarting CUDA")
+        sta = time.time()
+        _starter = torch.zeros((1, 1), dtype=torch.float32, device=_device)
+        end = time.time()
+        print("Time for start CUDA:", round(end - sta, 6), "seconds")
+
+    # Inputs
+    from imageio import imread
+    from os.path import join, isfile
+    from os import listdir
+    from nnMorpho.utils import to_greyscale, plot_four_operations
+    from scipy.ndimage.morphology import grey_erosion, grey_dilation, grey_opening, grey_closing
+    from matplotlib.pyplot import show
+
+    _path = join('..', 'images', 'dataset')
+    _images = [im for im in listdir(_path) if isfile(join(_path, im))]
+
+    # Creation of batched images
+    print("\nRecovering images...")
+
+    _images_list = list()
+    _arrays_list = list()
+    for im in _images:
+        _image = imread(join(_path, im))
+        _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+        _input_tensor = torch.tensor(_input_array)
+
+        _images_list.append(_input_tensor)
+        _arrays_list.append(_input_array)
+
+    _images_tensor = torch.stack(_images_list, 0)
+
+    # Computations
+    print("\nTesting operations...")
+
+    # Assign euclidean border value
+    _border_value = -INF
+
+    # Scipy
+    print("\nScipy")
+
+    _eroded_arrays_list = list()
+    _dilated_arrays_list = list()
+    _opened_arrays_list = list()
+    _closed_arrays_list = list()
+
+    # Erosion
+    sta = time.time()
+    for im_array in _arrays_list:
+        _output_array_scipy = grey_erosion(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        _eroded_arrays_list.append(_output_array_scipy)
+    end = time.time()
+    time_scipy_erosion = end - sta
+    print("Time for erosion in Scipy:", round(time_scipy_erosion, 6), "seconds")
+
+    _eroded_arrays = np.stack(_eroded_arrays_list, 0)
+
+    # Dilation
+    sta = time.time()
+    for im_array in _arrays_list:
+        _output_array_scipy = grey_dilation(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        _dilated_arrays_list.append(_output_array_scipy)
+    end = time.time()
+    time_scipy_dilation = end - sta
+    print("Time for dilation in Scipy:", round(time_scipy_dilation, 6), "seconds")
+
+    _dilated_arrays = np.stack(_dilated_arrays_list, 0)
+
+    # Opening
+    sta = time.time()
+    for im_array in _arrays_list:
+        _output_array_scipy = grey_opening(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        _opened_arrays_list.append(_output_array_scipy)
+    end = time.time()
+    time_scipy_opening = end - sta
+    print("Time for opening in Scipy:", round(time_scipy_opening, 6), "seconds")
+
+    _opened_arrays = np.stack(_opened_arrays_list, 0)
+
+    # Closing
+    sta = time.time()
+    for im_array in _arrays_list:
+        _output_array_scipy = grey_closing(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        _closed_arrays_list.append(_output_array_scipy)
+    end = time.time()
+    time_scipy_closing = end - sta
+    print("Time for closing in Scipy:", round(time_scipy_closing, 6), "seconds")
+
+    _closed_arrays = np.stack(_closed_arrays_list, 0)
+
+    # nnMorpho
+    print("\nnnMorpho")
+
+    if not str(_device) == 'cpu':
+        # Memory transfer
+        sta = time.time()
+        _images_tensor_cuda = _images_tensor.to(_device)
+        _strel_tensor_cuda = _strel_tensor.to(_device)
+        end = time.time()
+        time_memory_transfer = end - sta
+        print("Time for Memory transfer to GPU:", round(time_memory_transfer, 6), "seconds")
+
+        # Erosion
+        sta = time.time()
+        _eroded_images_tensor = erosion(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
+        end = time.time()
+        time_computation_erosion = end - sta
+        print("Time for computation of the erosion:", round(time_computation_erosion, 6), "seconds")
+        time_morpho_erosion = time_computation_erosion + time_memory_transfer
+        print("Time for erosion in nnMorpho:", round(time_morpho_erosion, 6), "seconds")
+
+        # Error
+        error = torch.norm(_eroded_images_tensor - torch.tensor(_eroded_arrays, device=_device), p=1).item()
+        print("Error erosion Scipy/nnMorpho =", error)
+        print("Improved speed in erosion: x" + str(round(time_scipy_erosion / time_morpho_erosion)))
+
+        # Dilation
+        sta = time.time()
+        _dilated_images_tensor = dilation(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
+        end = time.time()
+        time_computation_dilation = end - sta
+        print("Time for computation of the dilation:", round(time_computation_dilation, 6), "seconds")
+        time_morpho_dilation = time_computation_dilation + time_memory_transfer
+        print("Time for dilation in nnMorpho:", round(time_morpho_dilation, 6), "seconds")
+
+        # Error
+        error = torch.norm(_dilated_images_tensor - torch.tensor(_dilated_arrays, device=_device), p=1).item()
+        print("Error dilation Scipy/nnMorpho =", error)
+        print("Improved speed in dilation: x" + str(round(time_scipy_dilation / time_morpho_dilation)))
+
+        # Opening
+        sta = time.time()
+        _opened_images_tensor = opening(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
+        end = time.time()
+        time_computation_opening = end - sta
+        print("Time for computation of the opening:", round(time_computation_opening, 6), "seconds")
+        time_morpho_opening = time_computation_opening + time_memory_transfer
+        print("Time for opening in nnMorpho:", round(time_morpho_opening, 6), "seconds")
+
+        # Error
+        error = torch.norm(_opened_images_tensor - torch.tensor(_opened_arrays, device=_device), p=1).item()
+        print("Error opening Scipy/nnMorpho =", error)
+        print("Improved speed in opening: x" + str(round(time_scipy_opening / time_morpho_opening)))
+
+        # Closing
+        sta = time.time()
+        _closed_images_tensor = closing(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
+        end = time.time()
+        time_computation_closing = end - sta
+        print("Time for computation of the closing:", round(time_computation_closing, 6), "seconds")
+        time_morpho_closing = time_computation_closing + time_memory_transfer
+        print("Time for closing in nnMorpho:", round(time_morpho_closing, 6), "seconds")
+
+        # Error
+        error = torch.norm(_closed_images_tensor - torch.tensor(_closed_arrays, device=_device), p=1).item()
+        print("Error closing Scipy/nnMorpho =", error)
+        print("Improved speed in closing: x" + str(round(time_scipy_closing / time_morpho_closing)))
+    else:
+        # Erosion
+        sta = time.time()
+        _eroded_images_tensor = erosion(_images_tensor, _strel_tensor, origin=_origin, border_value=_border_value)
+        end = time.time()
+        print("Time for erosion in nnMorpho:", round(end - sta, 6), "seconds")
+
+        error = torch.norm(_eroded_images_tensor - torch.tensor(_eroded_arrays), p=1).item()
+        print("Error erosion Scipy/nnMorpho =", error)
+
+        # Dilation
+        sta = time.time()
+        _dilated_images_tensor = dilation(_images_tensor, _strel_tensor, origin=_origin, border_value=_border_value)
+        end = time.time()
+        print("Time for dilation in nnMorpho:", round(end - sta, 6), "seconds")
+
+        error = torch.norm(_dilated_images_tensor - torch.tensor(_dilated_arrays), p=1).item()
+        print("Error dilation Scipy/nnMorpho =", error)
+
+        # Opening
+        sta = time.time()
+        _opened_images_tensor = opening(_images_tensor, _strel_tensor, origin=_origin, border_value=_border_value)
+        end = time.time()
+        print("Time for opening in nnMorpho:", round(end - sta, 6), "seconds")
+
+        error = torch.norm(_opened_images_tensor - torch.tensor(_opened_arrays), p=1).item()
+        print("Error opening Scipy/nnMorpho =", error)
+
+        # Closing
+        sta = time.time()
+        _closed_images_tensor = closing(_images_tensor, _strel_tensor, origin=_origin, border_value=_border_value)
+        end = time.time()
+        print("Time for closing in nnMorpho:", round(end - sta, 6), "seconds")
+
+        error = torch.norm(_closed_images_tensor - torch.tensor(_closed_arrays), p=1).item()
+        print("Error closing Scipy/nnMorpho =", error)
+
+    if _show_images:
+        for im in range(_images_tensor.shape[0]):
+            plot_four_operations(_images_tensor[im], _eroded_images_tensor[im], _dilated_images_tensor[im],
+                                 _opened_images_tensor[im], _closed_images_tensor[im], 'Image ' + str(im + 1),
+                                 show=False, cmap='gray',
+                                 v_min=0, v_max=255)
 
     if _show_images:
         show()
@@ -508,7 +779,7 @@ def test_partial_erosion():
     # Inputs
     from imageio import imread
     from os.path import join
-    from utils import to_greyscale, plot_image
+    from nnMorpho.utils import to_greyscale, plot_image
 
     _path = join('..', 'images', 'geometry')
     _image = 'vertical_line.png'
@@ -561,5 +832,6 @@ def test_partial_erosion():
 
 
 if __name__ == '__main__':
+    test_batched_operations()
     # test_common_operations()
-    test_partial_erosion()
+    # test_partial_erosion()

@@ -96,6 +96,50 @@ __global__ void dilation_cuda_kernel(
 	}
 }
 
+__global__ void erosion_batched_cuda_kernel(
+		const torch::PackedTensorAccessor32<float,3,torch::RestrictPtrTraits> input_tensor,
+		const torch::PackedTensorAccessor32<float,2,torch::RestrictPtrTraits> strel_tensor,
+		torch::PackedTensorAccessor32<float,3> output_tensor) {
+	
+	/* Sizes */
+	// Input
+	const auto batch_size = input_tensor.size(0);
+	const auto input_height = input_tensor.size(1);
+	const auto input_width = input_tensor.size(2);
+	
+	// Strel
+	const auto strel_height = strel_tensor.size(0);
+	const auto strel_width = strel_tensor.size(1);
+	
+	// Output
+	const auto output_height = output_tensor.size(1);
+	const auto output_width = output_tensor.size(2);
+	
+	// Compute thread index corresponding in output tensor
+	unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+	unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+	
+	// Initialize temporal variables 
+	float value;
+	float candidate;
+	
+	// Compute the value of output[y][x]
+	if (x < output_width && y < output_height) {
+		for (int k = 0; k < batch_size; k++) {
+			value = INF;
+			for (int j = 0; j < strel_height; j++) {
+				for (int i = 0; i < strel_width; i++) {
+					candidate = input_tensor[k][y + j][x + i] - strel_tensor[j][i];
+					if (candidate < value) {
+						value = candidate;
+					}
+				}
+			}
+			output_tensor[k][y][x] = value;
+		}
+	}
+}
+
 __global__ void partial_erosion_cuda_kernel(
 		const torch::PackedTensorAccessor32<float,2,torch::RestrictPtrTraits> input_tensor,
 		const torch::PackedTensorAccessor32<float,2,torch::RestrictPtrTraits> strel_tensor,
@@ -364,6 +408,47 @@ torch::Tensor dilation_cuda(
 
 	// Launch of the kernel
 	dilation_cuda_kernel<<<grid_size, block_size>>>(input_accessor, strel_accessor, output_accessor);
+	
+  	return output_tensor;
+}
+
+torch::Tensor erosion_batched_cuda(
+    torch::Tensor input_tensor,
+    torch::Tensor strel_tensor,
+    torch::Tensor block_shape) {
+
+	// Compute output size
+	const auto batch_size = input_tensor.size(0);
+	const auto input_height = input_tensor.size(1);
+	const auto input_width = input_tensor.size(2);
+	const auto strel_height = strel_tensor.size(0);
+	const auto strel_width = strel_tensor.size(1);
+	
+	const auto output_height = input_height - strel_height + 1;
+	const auto output_width = input_width - strel_width + 1;
+  	
+  	// Initialize output tensor
+  	auto options = torch::TensorOptions().device(input_tensor.device());
+  	torch::Tensor output_tensor = torch::zeros({batch_size, output_height, output_width}, options);
+  	
+  	// Block & Grid parameters
+  	short* block_ptr = block_shape.data_ptr<short>();
+  	const short block_height = block_ptr[0];
+  	const short block_width = block_ptr[1];
+  	
+	const int grid_height = ((output_height - 1) / block_height) + 1;
+	const int grid_width = ((output_width - 1) / block_width) + 1;
+	
+	const dim3 block_size(block_width, block_height, 1);
+	const dim3 grid_size(grid_width, grid_height, 1);
+
+	// Create accessors
+	auto input_accessor = input_tensor.packed_accessor32<float,3,torch::RestrictPtrTraits>();
+	auto strel_accessor = strel_tensor.packed_accessor32<float,2,torch::RestrictPtrTraits>();
+	auto output_accessor = output_tensor.packed_accessor32<float,3>();
+
+	// Launch of the kernel
+	erosion_batched_cuda_kernel<<<grid_size, block_size>>>(input_accessor, strel_accessor, output_accessor);
 	
   	return output_tensor;
 }
