@@ -1,6 +1,6 @@
 from nnMorpho.parameters import *
 from nnMorpho.functions import ErosionFunction, DilationFunction
-from nnMorpho.operations import fill_border
+from nnMorpho.operations import fill_border, _erosion
 
 
 # Todo: check parameters OK when initializing modules
@@ -14,7 +14,10 @@ class Erosion(Module):
         self.structural_element.requires_grad = True
 
     def forward(self, image: Tensor) -> Tensor:
-        return ErosionFunction.apply(image, self.structural_element, self.origin, self.border_value)
+        if not str(image.device) == 'cpu':
+            return ErosionFunction.apply(image, self.structural_element, self.origin, self.border_value)
+        else:
+            return _erosion(image, self.structural_element, self.origin, self.border_value)
 
 
 class Dilation(Module):

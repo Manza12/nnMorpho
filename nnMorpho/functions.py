@@ -48,8 +48,9 @@ class ErosionFunction(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, *grad_outputs):
-        indexes, strel_shape = ctx.saved_tensors
         grad_output = grad_outputs[0]
+
+        indexes, strel_shape = ctx.saved_tensors
 
         if grad_output.ndim - len(strel_shape) == 0:
             result = morphology_cuda.erosion_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE)
@@ -93,3 +94,52 @@ class DilationFunction(torch.autograd.Function):
         result = morphology_cuda.dilation_backward(grad_output[0], indexes, strel_shape, BLOCK_SHAPE)
 
         return None, result, None, None
+
+
+if __name__ == '__main__':
+    from imageio import imread
+    from os.path import join, isfile
+    from os import listdir
+    from nnMorpho.utils import to_greyscale
+    from nnMorpho.operations import _erosion
+
+    _path = join('..', 'images', 'dataset')
+    _images = [im for im in listdir(_path) if isfile(join(_path, im))]
+
+    _images_list = list()
+    for im in _images:
+        _image = imread(join(_path, im))
+        _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+        _input_tensor = torch.tensor(_input_array)
+
+        _images_list.append(_input_tensor)
+
+    _images_tensor = torch.stack(_images_list, 0)
+    _images_tensor = _images_tensor.to(DEVICE)
+
+    _strel_dim = (7, 7)
+    _origin = (_strel_dim[0] // 2, _strel_dim[1] // 2)
+
+    _strel_data = torch.rand(_strel_dim, dtype=torch.float32)
+    _strel_tensor_cpu = torch.nn.Parameter(_strel_data, requires_grad=True)
+    _strel_tensor_gpu = torch.nn.Parameter(_strel_data.to(DEVICE), requires_grad=True)
+
+    _image_eroded_gpu = ErosionFunction.apply(_images_tensor, _strel_tensor_gpu, _origin, INF)
+    _image_eroded_cpu = _erosion(_images_tensor.cpu(), _strel_tensor_cpu.cpu(), _origin, INF)
+
+    error_forward = torch.norm(_image_eroded_gpu.cpu() - _image_eroded_cpu, p=1).item()
+    print("Error forward = ", error_forward)
+
+    criterion = torch.nn.MSELoss(reduction='mean')
+
+    loss_gpu = criterion(_image_eroded_gpu, torch.zeros_like(_image_eroded_gpu, device=DEVICE))
+    loss_cpu = criterion(_image_eroded_cpu, torch.zeros_like(_image_eroded_cpu))
+
+    loss_gpu.backward()
+    grad_gpu = _strel_tensor_gpu.grad
+
+    loss_cpu.backward()
+    grad_cpu = _strel_tensor_cpu.grad
+
+    error_backward = torch.norm(grad_gpu.cpu() - grad_cpu, p=1).item()
+    print("Error backward = ", error_backward)

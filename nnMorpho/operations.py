@@ -558,11 +558,11 @@ def test_batched_operations():
     from scipy.ndimage.morphology import grey_erosion, grey_dilation, grey_opening, grey_closing
     from matplotlib.pyplot import show
 
-    _path = join('..', 'images', 'dataset')
-    _images = [im for im in listdir(_path) if isfile(join(_path, im))]
-
     # Creation of batched images
     print("\nRecovering images...")
+
+    _path = join('..', 'images', 'dataset')
+    _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
     _images_list = list()
     _arrays_list = list()
