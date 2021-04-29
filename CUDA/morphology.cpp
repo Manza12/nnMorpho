@@ -43,6 +43,17 @@ torch::Tensor erosion_backward_cuda(
 		torch::Tensor indexes,
 		torch::Tensor strel_shape,
 		torch::Tensor block_shape);
+
+std::vector<torch::Tensor> erosion_batched_forward_cuda(
+		torch::Tensor input_tensor,
+		torch::Tensor strel_tensor,
+		torch::Tensor block_shape);
+		
+torch::Tensor erosion_batched_backward_cuda(
+		torch::Tensor grad_output,
+		torch::Tensor indexes,
+		torch::Tensor strel_shape,
+		torch::Tensor block_shape);
 		
 std::vector<torch::Tensor> dilation_forward_cuda(
 		torch::Tensor input_tensor,
@@ -169,6 +180,39 @@ torch::Tensor erosion_backward(
 	return grad_input;
 }
 
+std::vector<torch::Tensor> erosion_batched_forward(
+		torch::Tensor input_tensor,
+		torch::Tensor strel_tensor,
+		torch::Tensor block_shape) {
+	
+	// Checks
+	CHECK_INPUT(input_tensor);
+	CHECK_INPUT(strel_tensor);
+	CHECK_SHORT(block_shape);
+	
+	// Computation
+	std::vector<torch::Tensor> outputs = erosion_batched_forward_cuda(input_tensor, strel_tensor, block_shape); 
+	
+	return outputs;
+}
+
+torch::Tensor erosion_batched_backward(
+		torch::Tensor grad_output,
+		torch::Tensor indexes,
+		torch::Tensor strel_shape,
+		torch::Tensor block_shape) {
+	
+	// Checks
+	CHECK_INPUT(grad_output);
+	CHECK_SHORT(strel_shape);
+	CHECK_SHORT(block_shape);
+	
+	// Computation
+	torch::Tensor grad_input = erosion_batched_backward_cuda(grad_output, indexes, strel_shape, block_shape); 
+	
+	return grad_input;
+}
+
 std::vector<torch::Tensor> dilation_forward(
 		torch::Tensor input_tensor,
 		torch::Tensor strel_tensor,
@@ -213,6 +257,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   
   m.def("erosion_forward", &erosion_forward, "Erosion forward (CUDA)");
   m.def("erosion_backward", &erosion_backward, "Erosion backward (CUDA)");
+  
+  m.def("erosion_batched_forward", &erosion_batched_forward, "Erosion batched forward (CUDA)");
+  m.def("erosion_batched_backward", &erosion_batched_backward, "Erosion batched backward (CUDA)");
   
   m.def("dilation_forward", &dilation_forward, "Dilation forward (CUDA)");
   m.def("dilation_backward", &dilation_backward, "Dilation backward (CUDA)");
