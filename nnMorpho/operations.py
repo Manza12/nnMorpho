@@ -639,6 +639,8 @@ def test_batched_operations():
 
     if not str(_device) == 'cpu':
         # Memory transfer
+        print("\nMemory transfer")
+
         sta = time.time()
         _images_tensor_cuda = _images_tensor.to(_device)
         _strel_tensor_cuda = _strel_tensor.to(_device)
@@ -647,6 +649,8 @@ def test_batched_operations():
         print("Time for Memory transfer to GPU:", round(time_memory_transfer, 6), "seconds")
 
         # Erosion
+        print("\nErosion")
+
         sta = time.time()
         _eroded_images_tensor = erosion(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
         end = time.time()
@@ -661,6 +665,8 @@ def test_batched_operations():
         print("Improved speed in erosion: x" + str(round(time_scipy_erosion / time_morpho_erosion)))
 
         # Dilation
+        print("\nDilation")
+
         sta = time.time()
         _dilated_images_tensor = dilation(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
         end = time.time()
@@ -675,6 +681,8 @@ def test_batched_operations():
         print("Improved speed in dilation: x" + str(round(time_scipy_dilation / time_morpho_dilation)))
 
         # Opening
+        print("\nOpening")
+
         sta = time.time()
         _opened_images_tensor = opening(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
         end = time.time()
@@ -689,6 +697,8 @@ def test_batched_operations():
         print("Improved speed in opening: x" + str(round(time_scipy_opening / time_morpho_opening)))
 
         # Closing
+        print("\nClosing")
+
         sta = time.time()
         _closed_images_tensor = closing(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
         end = time.time()
