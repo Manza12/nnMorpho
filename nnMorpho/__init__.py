@@ -1,3 +1,3 @@
-__all__ = ['operations', 'modules', 'utils']
-__version__ = '0.2.0'
+__all__ = ['operations', 'modules', 'functions', 'utils']
+__version__ = '1.1.0'
 __author__ = 'Gonzalo Romero-García'
