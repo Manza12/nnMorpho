@@ -114,8 +114,8 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
     """
     # Imports
     from nnMorpho.operations import dilation, erosion, opening, closing
-    from nnMorpho.utils import plot_image, get_strel, assert_2d_tuple, create_image, assert_positive_integer, log_scale, \
-        lin_scale
+    from nnMorpho.utils import plot_image, get_strel, assert_2d_tuple, create_image, assert_positive_integer, \
+        log_scale, lin_scale
 
     # Prints
     print("Learning the structural element of %r." % operation_str)
@@ -163,14 +163,15 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
         raise ValueError("Invalid parameter structural_element_origin. Value should be either 'half' either a tuple.")
 
     if plot_start:
-        plot_image(structural_element, 'Structural element', origin=structural_element_origin, v_min=-10, v_max=20)
+        plot_image(structural_element, title='Structural element', origin=structural_element_origin,
+                   v_min=-10, v_max=20)
 
     # Original image
     if not type(image) == NoneType:
         original_image = image.float()
 
         if plot_start:
-            plot_image(original_image, 'Original image')
+            plot_image(original_image, title='Original image')
     else:
         original_image = create_image(plot=False)
 
@@ -178,7 +179,7 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
             original_image = dilation(original_image, structural_element, structural_element_origin, -INF)
 
         if plot_start:
-            plot_image(original_image, 'Original image', v_min=0, v_max=255)
+            plot_image(original_image, title='Original image', v_min=0, v_max=255)
 
     # Target image
     y = operation(original_image, structural_element, origin=structural_element_origin, border_value='geodesic')
@@ -198,7 +199,7 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
         y_2 = None
 
     if plot_start:
-        plot_image(target_image, 'Target image', v_min=0, v_max=255)
+        plot_image(target_image, title='Target image', v_min=0, v_max=255)
 
     # Model
     assert_2d_tuple(model_shape, 'model_shape', True)
@@ -236,9 +237,9 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
         if t % iterations_per_step == 0:
             print("Iteration %r" % t, "Loss %r" % round(scale(loss.item()), 2))
             if plot_steps:
-                plot_image(y_predicted, 'Predicted image at iteration %r' % t, show=False, v_min=0, v_max=255)
-                plot_image(y, 'Target image', show=False, v_min=0, v_max=255)
-                plot_image(model.structural_element, 'Learned structural element', v_min=-10, v_max=20)
+                plot_image(y_predicted, title='Predicted image at iteration %r' % t, show=False, v_min=0, v_max=255)
+                plot_image(y, title='Target image', show=False, v_min=0, v_max=255)
+                plot_image(model.structural_element, title='Learned structural element', v_min=-10, v_max=20)
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
@@ -262,9 +263,9 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
 
     # Plots
     if not _batched_images:
-        plot_image(original_image, 'Original image', show=False, v_min=0, v_max=255, name='original_image')
-        plot_image(target_image, 'Target image', show=False, v_min=0, v_max=255, name='target_image')
-        plot_image(output_image, 'Predicted image', show=False,  v_min=0, v_max=255, name='predicted_image')
+        plot_image(original_image, title='Original image', show=False, v_min=0, v_max=255, name='original_image')
+        plot_image(target_image, title='Target image', show=False, v_min=0, v_max=255, name='target_image')
+        plot_image(output_image, title='Predicted image', show=False,  v_min=0, v_max=255, name='predicted_image')
 
     plot_image(f.pad(structural_element,
                      [(model.shape[0] - structural_element.shape[0]) // 2,
@@ -272,12 +273,12 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
                       (model.shape[1] - structural_element.shape[1]) // 2,
                       (model.shape[1] - structural_element.shape[1]) // 2],
                      mode='constant', value=-INF),
-               'Original structural element',
+               title='Original structural element',
                origin=(structural_element_origin[0] + structural_element.shape[0] // 2 + 1,
                        structural_element_origin[1] + structural_element.shape[1] // 2 + 1),
                show=False, v_min=-10, v_max=20, name='original_structural_element')
 
-    plot_image(model.structural_element, 'Learned structural element', origin=model_origin,
+    plot_image(model.structural_element, title='Learned structural element', origin=model_origin,
                v_min=-10, v_max=20, name='learned_structural_element')
 
 

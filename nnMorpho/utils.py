@@ -28,7 +28,7 @@ def create_image(image_shape: tuple = (64, 64), plot=True) -> Tensor:
         points.append(point)
 
     if plot:
-        plot_image(x, 'Original image')
+        plot_image(x, title='Original image')
 
     return x
 
@@ -95,7 +95,7 @@ def get_strel(form: str, shape: tuple, **kwargs) -> torch.Tensor:
         raise ValueError('Invalid parameter form.\nAllowed parameters are: "square", "cross" and "rake".')
 
 
-def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
+def plot_image(tensor: torch.Tensor, **kwargs):
     import matplotlib.pyplot as plt
 
     try:
@@ -107,9 +107,9 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
 
     try:
         name = kwargs['name']
-        plt.figure(num=name)
+        fig = plt.figure(num=name)
     except KeyError:
-        plt.figure()
+        fig = plt.figure()
 
     try:
         cmap = kwargs['cmap']
@@ -123,14 +123,28 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     except KeyError:
         plt.imshow(tensor.cpu().detach().numpy(), cmap=cmap)
 
-    plt.title(title)
-    if origin:
-        plt.scatter(origin[0], origin[1], marker='x', c='r')
-    if show:
-        plt.show()
+    try:
+        title = kwargs['title']
+        fig.title(title)
+    except KeyError:
+        pass
+
+    try:
+        show = kwargs['show']
+        if show:
+            plt.show()
+    except KeyError:
+        pass
+
+    try:
+        origin = kwargs['origin']
+        if origin:
+            plt.scatter(origin[0], origin[1], marker='x', c='r')
+    except KeyError:
+        pass
 
 
-def plot_images_side_by_side(tensor_1: torch.Tensor, tensor_2: torch.Tensor, title, show=True, **kwargs):
+def plot_images_side_by_side(tensor_1: torch.Tensor, tensor_2: torch.Tensor, **kwargs):
     import matplotlib.pyplot as plt
 
     try:
@@ -154,14 +168,22 @@ def plot_images_side_by_side(tensor_1: torch.Tensor, tensor_2: torch.Tensor, tit
         ax_1.imshow(tensor_1.cpu().detach().numpy(), cmap=cmap)
         ax_2.imshow(tensor_2.cpu().detach().numpy(), cmap=cmap)
 
-    fig.suptitle(title)
+    try:
+        title = kwargs['title']
+        fig.suptitle(title)
+    except KeyError:
+        pass
 
-    if show:
-        plt.show()
+    try:
+        show = kwargs['show']
+        if show:
+            plt.show()
+    except KeyError:
+        pass
 
 
 def plot_four_operations(input_tensor: torch.Tensor, eroded_tensor: torch.Tensor, dilated_tensor: torch.Tensor,
-                         opened_tensor: torch.Tensor, closed_tensor: torch.Tensor, title, show=True, **kwargs):
+                         opened_tensor: torch.Tensor, closed_tensor: torch.Tensor, **kwargs):
     import matplotlib.pyplot as plt
 
     try:
@@ -229,10 +251,18 @@ def plot_four_operations(input_tensor: torch.Tensor, eroded_tensor: torch.Tensor
         ax_opening.imshow(opened_tensor.cpu().detach().numpy(), cmap=cmap)
         ax_closing.imshow(closed_tensor.cpu().detach().numpy(), cmap=cmap)
 
-    fig.suptitle(title)
+    try:
+        title = kwargs['title']
+        fig.suptitle(title)
+    except KeyError:
+        pass
 
-    if show:
-        plt.show()
+    try:
+        show = kwargs['show']
+        if show:
+            plt.show()
+    except KeyError:
+        pass
 
 
 def to_greyscale(image: np.ndarray, warn=True):
