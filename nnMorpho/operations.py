@@ -153,7 +153,12 @@ def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
             elif input_tensor.ndim - structural_element.ndim == 1:
                 result = morphology_cuda.erosion_batched(input_pad, structural_element, BLOCK_SHAPE)
             elif input_tensor.ndim - structural_element.ndim == 2:
-                result = morphology_cuda.erosion_batched_channel(input_pad, structural_element, BLOCK_SHAPE)
+                batch_channel_dim = input_pad.shape[0] * input_pad.shape[1]
+                input_height = input_pad.shape[2]
+                input_width = input_pad.shape[3]
+                input_view = input_pad.view(batch_channel_dim, input_height, input_width)
+                result = morphology_cuda.erosion_batched(input_view, structural_element, BLOCK_SHAPE)
+                result = result.view(*input_tensor.shape)
             else:
                 raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
                                           "- 2D tensors of the form (H, W)\n"
@@ -527,16 +532,18 @@ def test_batched_operations():
 
     # Parameters
     _show_images = True
-    _strel_dim = (11, 11)
+    _strel_dim = (5, 5)
     _origin = (_strel_dim[0] // 2, _strel_dim[1] // 2)
     _device = 'cuda'
     _device = torch.device("cuda:0" if torch.cuda.is_available() and _device == 'cuda' else "cpu")
+    _color = True
 
     print("\nParameters:")
     print("Showing images:", _show_images)
     print("Structural element dimension:", _strel_dim)
     print("Origin:", _origin)
     print("Device:", _device)
+    print("Color:", _color)
 
     # Structural element
     _strel_tensor = torch.rand(_strel_dim, dtype=torch.float32) * 12 - 6
@@ -561,15 +568,25 @@ def test_batched_operations():
     # Creation of batched images
     print("\nRecovering images...")
 
-    _path = join('..', 'images', 'dataset')
+    if _color:
+        _path = join('..', 'images', 'color')
+    else:
+        _path = join('..', 'images', 'greyscale')
+
     _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
     _images_list = list()
     _arrays_list = list()
     for im in _images:
         _image = imread(join(_path, im))
-        _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
-        _input_tensor = torch.tensor(_input_array)
+        if not _color:
+            _input_array = to_greyscale(np.array(_image), warn=False).astype(np.float32)
+            _input_tensor = torch.tensor(_input_array)
+        else:
+            _input_array = np.array(_image, dtype=np.float32)
+            _input_tensor = torch.tensor(_input_array)
+            _input_tensor = torch.transpose(_input_tensor, 1, 2)
+            _input_tensor = torch.transpose(_input_tensor, 0, 1)
 
         _images_list.append(_input_tensor)
         _arrays_list.append(_input_array)
@@ -578,9 +595,6 @@ def test_batched_operations():
 
     # Computations
     print("\nTesting operations...")
-
-    # Assign euclidean border value
-    _border_value = -INF
 
     # Scipy
     print("\nScipy")
@@ -591,9 +605,21 @@ def test_batched_operations():
     _closed_arrays_list = list()
 
     # Erosion
+    _border_value = INF
     sta = time.time()
     for im_array in _arrays_list:
-        _output_array_scipy = grey_erosion(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        if not _color:
+            _output_array_scipy = grey_erosion(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        else:
+            _output_array_r = grey_erosion(im_array[:, :, 0], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+            _output_array_g = grey_erosion(im_array[:, :, 1], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+            _output_array_b = grey_erosion(im_array[:, :, 2], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+
+            _output_array_scipy = np.stack((_output_array_r, _output_array_g, _output_array_b), axis=2)
+
         _eroded_arrays_list.append(_output_array_scipy)
     end = time.time()
     time_scipy_erosion = end - sta
@@ -602,9 +628,21 @@ def test_batched_operations():
     _eroded_arrays = np.stack(_eroded_arrays_list, 0)
 
     # Dilation
+    _border_value = INF
     sta = time.time()
     for im_array in _arrays_list:
-        _output_array_scipy = grey_dilation(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        if not _color:
+            _output_array_scipy = grey_dilation(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        else:
+            _output_array_r = grey_dilation(im_array[:, :, 0], structure=_strel_array, mode='constant',
+                                            cval=_border_value)
+            _output_array_g = grey_dilation(im_array[:, :, 1], structure=_strel_array, mode='constant',
+                                            cval=_border_value)
+            _output_array_b = grey_dilation(im_array[:, :, 2], structure=_strel_array, mode='constant',
+                                            cval=_border_value)
+
+            _output_array_scipy = np.stack((_output_array_r, _output_array_g, _output_array_b), axis=2)
+
         _dilated_arrays_list.append(_output_array_scipy)
     end = time.time()
     time_scipy_dilation = end - sta
@@ -613,9 +651,21 @@ def test_batched_operations():
     _dilated_arrays = np.stack(_dilated_arrays_list, 0)
 
     # Opening
+    _border_value = -INF
     sta = time.time()
     for im_array in _arrays_list:
-        _output_array_scipy = grey_opening(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        if not _color:
+            _output_array_scipy = grey_opening(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        else:
+            _output_array_r = grey_opening(im_array[:, :, 0], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+            _output_array_g = grey_opening(im_array[:, :, 1], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+            _output_array_b = grey_opening(im_array[:, :, 2], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+
+            _output_array_scipy = np.stack((_output_array_r, _output_array_g, _output_array_b), axis=2)
+
         _opened_arrays_list.append(_output_array_scipy)
     end = time.time()
     time_scipy_opening = end - sta
@@ -624,15 +674,32 @@ def test_batched_operations():
     _opened_arrays = np.stack(_opened_arrays_list, 0)
 
     # Closing
+    _border_value = -INF
     sta = time.time()
     for im_array in _arrays_list:
-        _output_array_scipy = grey_closing(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        if not _color:
+            _output_array_scipy = grey_opening(im_array, structure=_strel_array, mode='constant', cval=_border_value)
+        else:
+            _output_array_r = grey_closing(im_array[:, :, 0], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+            _output_array_g = grey_closing(im_array[:, :, 1], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+            _output_array_b = grey_closing(im_array[:, :, 2], structure=_strel_array, mode='constant',
+                                           cval=_border_value)
+
+            _output_array_scipy = np.stack((_output_array_r, _output_array_g, _output_array_b), axis=2)
+
         _closed_arrays_list.append(_output_array_scipy)
     end = time.time()
     time_scipy_closing = end - sta
     print("Time for closing in Scipy:", round(time_scipy_closing, 6), "seconds")
 
     _closed_arrays = np.stack(_closed_arrays_list, 0)
+
+    # from nnMorpho.utils import plot_four_operations
+    # plot_four_operations(torch.tensor(_arrays_list[1]), torch.tensor(_eroded_arrays[1]),
+    #                      torch.tensor(_dilated_arrays[1]), torch.tensor(_opened_arrays[1]),
+    #                      torch.tensor(_closed_arrays[1]), '', color=True)
 
     # nnMorpho
     print("\nnnMorpho")
@@ -650,7 +717,7 @@ def test_batched_operations():
 
         # Erosion
         print("\nErosion")
-
+        _border_value = INF
         sta = time.time()
         _eroded_images_tensor = erosion(_images_tensor_cuda, _strel_tensor_cuda, _origin, _border_value)
         end = time.time()

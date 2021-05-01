@@ -99,6 +99,13 @@ def plot_image(tensor: torch.Tensor, title, origin=None, show=True, **kwargs):
     import matplotlib.pyplot as plt
 
     try:
+        color = kwargs['color']
+        if color:
+            tensor = torch.clip(tensor, 0, 255) / 256
+    except KeyError:
+        pass
+
+    try:
         name = kwargs['name']
         plt.figure(num=name)
     except KeyError:
@@ -156,6 +163,17 @@ def plot_images_side_by_side(tensor_1: torch.Tensor, tensor_2: torch.Tensor, tit
 def plot_four_operations(input_tensor: torch.Tensor, eroded_tensor: torch.Tensor, dilated_tensor: torch.Tensor,
                          opened_tensor: torch.Tensor, closed_tensor: torch.Tensor, title, show=True, **kwargs):
     import matplotlib.pyplot as plt
+
+    try:
+        color = kwargs['color']
+        if color:
+            input_tensor = torch.clip(input_tensor, 0, 255) / 256
+            eroded_tensor = torch.clip(eroded_tensor, 0, 255) / 256
+            dilated_tensor = torch.clip(dilated_tensor, 0, 255) / 256
+            opened_tensor = torch.clip(opened_tensor, 0, 255) / 256
+            closed_tensor = torch.clip(closed_tensor, 0, 255) / 256
+    except KeyError:
+        pass
 
     try:
         name = kwargs['name']
