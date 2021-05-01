@@ -1,0 +1,1 @@
+- Refactor the images displays on the common operations test in the operations.py module
