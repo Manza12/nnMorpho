@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name='nnMorpho',
   packages=['nnMorpho'],
-  version='1.0.2',
+  version='1.1.0',
   license='MIT',
   description='A library for general purpose Mathematical Morphology',
   author='Gonzalo Romero-García',
