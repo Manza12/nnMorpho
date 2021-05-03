@@ -51,7 +51,6 @@ class ErosionFunction(torch.autograd.Function):
         grad_output = grad_outputs[0]
 
         indexes, strel_shape = ctx.saved_tensors
-        print(indexes)
 
         if grad_output.ndim - len(strel_shape) == 0:
             result = morphology_cuda.erosion_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE)
