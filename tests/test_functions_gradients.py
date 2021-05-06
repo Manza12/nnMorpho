@@ -2,11 +2,15 @@ import torch
 from nnMorpho.operations import erosion, dilation
 from nnMorpho.functions import ErosionFunction, DilationFunction
 
-image_size = (5, 8)
+color = True
+
+if color:
+    image_size = (3, 5, 8)
+else:
+    image_size = (5, 8)
+
 strel_size = (3, 3)
 origin = (2, 2)
-
-rand = True
 
 image_1 = torch.rand(image_size, device='cuda:0')
 image_2 = torch.rand(image_size, device='cuda:0')
@@ -58,6 +62,7 @@ if __name__ == '__main__':
     print("Gradients for erosion")
     print("Gradient batch:\n", strel_batch_erosion.grad)
     print("Gradient stack:\n", strel_stack_erosion.grad)
+    print("Error between erosion:", torch.norm(eroded_batch - eroded_stack, 1).item())
 
     # Dilation
 
@@ -81,3 +86,4 @@ if __name__ == '__main__':
     print("Gradients for dilation")
     print("Gradient batch:\n", strel_batch_dilation.grad)
     print("Gradient stack:\n", strel_stack_dilation.grad)
+    print("Error between dilation:", torch.norm(dilated_batch - dilated_stack, 1).item())

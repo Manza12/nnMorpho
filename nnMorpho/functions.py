@@ -34,7 +34,13 @@ class ErosionFunction(torch.autograd.Function):
         elif input_tensor.ndim - strel_tensor.ndim == 1:
             output_tensor, indexes = morphology_cuda.erosion_batched_forward(input_pad, strel_tensor, BLOCK_SHAPE)
         elif input_tensor.ndim - strel_tensor.ndim == 2:
-            raise NotImplementedError("ToDo")
+            batch_channel_dim = input_pad.shape[0] * input_pad.shape[1]
+            input_height = input_pad.shape[2]
+            input_width = input_pad.shape[3]
+            input_view = input_pad.view(batch_channel_dim, input_height, input_width)
+            output_tensor, indexes = morphology_cuda.erosion_batched_forward(input_view, strel_tensor, BLOCK_SHAPE)
+            output_tensor = output_tensor.view(*input_tensor.shape)
+            indexes = indexes.view(*input_tensor.shape, 2)
         else:
             raise NotImplementedError("Currently, nnMorpho only supports as input:\n" 
                                       "- 2D tensors of the form (H, W)\n"
@@ -57,7 +63,12 @@ class ErosionFunction(torch.autograd.Function):
         elif grad_output.ndim - len(strel_shape) == 1:
             result = morphology_cuda.erosion_batched_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE)
         elif grad_output.ndim - len(strel_shape) == 2:
-            raise NotImplementedError("ToDo")
+            batch_channel_dim = grad_output.shape[0] * grad_output.shape[1]
+            input_height = grad_output.shape[2]
+            input_width = grad_output.shape[3]
+            grad_output_view = grad_output.view(batch_channel_dim, input_height, input_width)
+            indexes_view = indexes.view(batch_channel_dim, input_height, input_width, 2)
+            result = morphology_cuda.erosion_batched_backward(grad_output_view, indexes_view, strel_shape, BLOCK_SHAPE)
         else:
             raise NotImplementedError("Currently, nnMorpho only supports as input:\n" 
                                       "- 2D tensors of the form (H, W)\n"
@@ -100,7 +111,13 @@ class DilationFunction(torch.autograd.Function):
         elif input_tensor.ndim - strel_tensor.ndim == 1:
             output_tensor, indexes = morphology_cuda.dilation_batched_forward(input_pad, strel_tensor, BLOCK_SHAPE)
         elif input_tensor.ndim - strel_tensor.ndim == 2:
-            raise NotImplementedError("ToDo")
+            batch_channel_dim = input_pad.shape[0] * input_pad.shape[1]
+            input_height = input_pad.shape[2]
+            input_width = input_pad.shape[3]
+            input_view = input_pad.view(batch_channel_dim, input_height, input_width)
+            output_tensor, indexes = morphology_cuda.dilation_batched_forward(input_view, strel_tensor, BLOCK_SHAPE)
+            output_tensor = output_tensor.view(*input_tensor.shape)
+            indexes = indexes.view(*input_tensor.shape, 2)
         else:
             raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
                                       "- 2D tensors of the form (H, W)\n"
@@ -123,7 +140,12 @@ class DilationFunction(torch.autograd.Function):
         elif grad_output.ndim - len(strel_shape) == 1:
             result = morphology_cuda.dilation_batched_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE)
         elif grad_output.ndim - len(strel_shape) == 2:
-            raise NotImplementedError("ToDo")
+            batch_channel_dim = grad_output.shape[0] * grad_output.shape[1]
+            input_height = grad_output.shape[2]
+            input_width = grad_output.shape[3]
+            grad_output_view = grad_output.view(batch_channel_dim, input_height, input_width)
+            indexes_view = indexes.view(batch_channel_dim, input_height, input_width, 2)
+            result = morphology_cuda.dilation_batched_backward(grad_output_view, indexes_view, strel_shape, BLOCK_SHAPE)
         else:
             raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
                                       "- 2D tensors of the form (H, W)\n"
