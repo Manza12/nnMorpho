@@ -274,8 +274,8 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
                       (model.shape[1] - structural_element.shape[1]) // 2],
                      mode='constant', value=-INF),
                title='Original structural element',
-               origin=(structural_element_origin[0] + structural_element.shape[0] // 2 + 1,
-                       structural_element_origin[1] + structural_element.shape[1] // 2 + 1),
+               origin=(structural_element_origin[0] + structural_element.shape[0] // 2 - 1,
+                       structural_element_origin[1] + structural_element.shape[1] // 2 - 1),
                show=False, v_min=-10, v_max=20, name='original_structural_element')
 
     plot_image(model.structural_element, title='Learned structural element', origin=model_origin,
@@ -289,10 +289,10 @@ if __name__ == '__main__':
     from nnMorpho.utils import to_greyscale
 
     # Operation parameters
-    _operations = ['dilation']  # , 'dilation', 'opening', 'closing']
+    _operations = ['erosion']  # , 'dilation', 'opening', 'closing']
 
     # Structural element parameters
-    _structural_element_form = 'rake'
+    _structural_element_form = 'cross'
     _structural_element_shape = (5, 5)
     _structural_element_origin = (_structural_element_shape[0] // 2, _structural_element_shape[1] // 2)
 
@@ -301,14 +301,15 @@ if __name__ == '__main__':
     _model_origin = (_model_shape[0] // 2, _model_shape[1] // 2)
 
     # Learning parameters
-    _iterations = 1000 * 10
+    _iterations = 1000 * 20
     _iterations_per_step = 100
     _plot_start = False
     _plot_steps = False
     _loss_scale = 'lin'
     _learning_rate = 9e-1
     _use_border = True
-    _batched_images = False
+    _batched_images = True
+    _color_images = True
 
     # Image/s
     if not _batched_images:
@@ -316,7 +317,11 @@ if __name__ == '__main__':
         _image = to_greyscale(np.array(_image), warn=False)
         _image_tensor = torch.tensor(_image, device=DEVICE)
     else:
-        _path = join('..', 'images', 'dataset')
+        if _color_images:
+            _path = join('..', 'images', 'color')
+        else:
+            _path = join('..', 'images', 'greyscale')
+
         _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
         # Creation of batched images
