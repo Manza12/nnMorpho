@@ -66,6 +66,17 @@ torch::Tensor dilation_backward_cuda(
 		torch::Tensor strel_shape,
 		torch::Tensor block_shape);
 
+std::vector<torch::Tensor> dilation_batched_forward_cuda(
+		torch::Tensor input_tensor,
+		torch::Tensor strel_tensor,
+		torch::Tensor block_shape);
+		
+torch::Tensor dilation_batched_backward_cuda(
+		torch::Tensor grad_output,
+		torch::Tensor indexes,
+		torch::Tensor strel_shape,
+		torch::Tensor block_shape);
+
 // C++ interface
 torch::Tensor erosion(
 		torch::Tensor input_tensor,
@@ -246,6 +257,39 @@ torch::Tensor dilation_backward(
 	return grad_input;
 }
 
+std::vector<torch::Tensor> dilation_batched_forward(
+		torch::Tensor input_tensor,
+		torch::Tensor strel_tensor,
+		torch::Tensor block_shape) {
+	
+	// Checks
+	CHECK_INPUT(input_tensor);
+	CHECK_INPUT(strel_tensor);
+	CHECK_SHORT(block_shape);
+	
+	// Computation
+	std::vector<torch::Tensor> outputs = dilation_batched_forward_cuda(input_tensor, strel_tensor, block_shape); 
+	
+	return outputs;
+}
+
+torch::Tensor dilation_batched_backward(
+		torch::Tensor grad_output,
+		torch::Tensor indexes,
+		torch::Tensor strel_shape,
+		torch::Tensor block_shape) {
+	
+	// Checks
+	CHECK_INPUT(grad_output);
+	CHECK_SHORT(strel_shape);
+	CHECK_SHORT(block_shape);
+	
+	// Computation
+	torch::Tensor grad_input = dilation_batched_backward_cuda(grad_output, indexes, strel_shape, block_shape); 
+	
+	return grad_input;
+}
+
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("erosion", &erosion, "Erosion (CUDA)");
   m.def("dilation", &dilation, "Dilation (CUDA)");
@@ -263,5 +307,8 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   
   m.def("dilation_forward", &dilation_forward, "Dilation forward (CUDA)");
   m.def("dilation_backward", &dilation_backward, "Dilation backward (CUDA)");
+
+  m.def("dilation_batched_forward", &dilation_batched_forward, "Dilation batched forward (CUDA)");
+  m.def("dilation_batched_backward", &dilation_batched_backward, "Dilation batched backward (CUDA)");
 }
 

@@ -289,10 +289,10 @@ if __name__ == '__main__':
     from nnMorpho.utils import to_greyscale
 
     # Operation parameters
-    _operations = ['erosion']  # , 'dilation', 'opening', 'closing']
+    _operations = ['dilation']  # , 'dilation', 'opening', 'closing']
 
     # Structural element parameters
-    _structural_element_form = 'cross'
+    _structural_element_form = 'rake'
     _structural_element_shape = (5, 5)
     _structural_element_origin = (_structural_element_shape[0] // 2, _structural_element_shape[1] // 2)
 
@@ -308,7 +308,7 @@ if __name__ == '__main__':
     _loss_scale = 'lin'
     _learning_rate = 9e-1
     _use_border = True
-    _batched_images = True
+    _batched_images = False
 
     # Image/s
     if not _batched_images:

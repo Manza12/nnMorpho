@@ -125,7 +125,7 @@ def plot_image(tensor: torch.Tensor, **kwargs):
 
     try:
         title = kwargs['title']
-        fig.title(title)
+        fig.suptitle(title)
     except KeyError:
         pass
 
