@@ -15,7 +15,7 @@ class MorphModule(torch.nn.Module):
     def forward(self, x):
         for strel in self.strel_list:
             origin = (strel.shape[0] // 2, strel.shape[1] // 2)
-            x = MF.DilationFunction.apply(x, strel, origin, -1e4)
+            x = MF.ErosionFunction.apply(x, strel, origin, -1e4)
         return x
 
 

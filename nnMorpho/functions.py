@@ -30,7 +30,8 @@ class ErosionFunction(torch.autograd.Function):
                           mode='constant', value=border_value)
 
         if input_tensor.ndim - strel_tensor.ndim == 0:
-            output_tensor, indexes = morphology_cuda.erosion_forward(input_pad, strel_tensor, BLOCK_SHAPE)
+            output_tensor, indexes_input, indexes_strel = \
+                morphology_cuda.erosion_forward(input_pad, strel_tensor, BLOCK_SHAPE)
         elif input_tensor.ndim - strel_tensor.ndim == 1:
             output_tensor, indexes = morphology_cuda.erosion_batched_forward(input_pad, strel_tensor, BLOCK_SHAPE)
         elif input_tensor.ndim - strel_tensor.ndim == 2:
@@ -48,7 +49,8 @@ class ErosionFunction(torch.autograd.Function):
                                       "- 4D tensors of the form (B, C, H, W)")
 
         strel_shape = torch.tensor(strel_tensor.shape, dtype=torch.int16)
-        ctx.save_for_backward(indexes, strel_shape)
+        origin_tensor = torch.tensor(origin, dtype=torch.int16)
+        ctx.save_for_backward(indexes_input, indexes_strel, strel_shape, origin_tensor)
 
         return output_tensor
 
@@ -56,10 +58,11 @@ class ErosionFunction(torch.autograd.Function):
     def backward(ctx, *grad_outputs):
         grad_output = grad_outputs[0]
 
-        indexes, strel_shape = ctx.saved_tensors
+        indexes_input, indexes_strel, strel_shape, origin_tensor = ctx.saved_tensors
 
         if grad_output.ndim - len(strel_shape) == 0:
-            result = morphology_cuda.erosion_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE)
+            grad_input, grad_strel = morphology_cuda.erosion_backward(
+                grad_output, indexes_input, indexes_strel, strel_shape, origin_tensor, BLOCK_SHAPE)
         elif grad_output.ndim - len(strel_shape) == 1:
             result = morphology_cuda.erosion_batched_backward(grad_output, indexes, strel_shape, BLOCK_SHAPE)
         elif grad_output.ndim - len(strel_shape) == 2:
@@ -75,7 +78,7 @@ class ErosionFunction(torch.autograd.Function):
                                       "- 3D tensors of the form (B, H, W)"
                                       "- 4D tensors of the form (B, C, H, W)")
 
-        return None, result, None, None
+        return grad_input, grad_strel, None, None
 
 
 class DilationFunction(torch.autograd.Function):
