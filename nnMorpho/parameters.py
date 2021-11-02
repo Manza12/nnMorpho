@@ -10,11 +10,11 @@ import torch.nn.functional as f
 import morphology_cuda
 from torch import Tensor
 from torch.nn import Module
-from typing import Union, List, Any
+from typing import Union, List, Any, Optional
 
 # This lines are for avoid problems in PyCharm
 packages = [logging, sys, warnings, torch, time, np, f, morphology_cuda]
-classes = [Tensor, Module, Union, List, Any]
+classes = [Tensor, Module, Union, List, Any, Optional]
 
 # Types
 NoneType = type(None)

@@ -5,7 +5,7 @@ def check_parameters(input_tensor, structural_element, origin, border_value):
     # Check types
     assert type(input_tensor) == torch.Tensor, 'Input type should be torch.Tensor.'
     assert type(structural_element) == torch.Tensor, 'Structural element type should be torch.Tensor.'
-    assert type(origin) in [tuple, List[int]], 'Origin type should be tuple or list[int].'
+    assert type(origin) in [tuple, List[int], type(None)], 'Origin type should be None, tuple or list[int].'
     assert type(border_value) in [int, float, str], 'Border value type should be int, float or string.'
 
     # Check dimension of input and structural element are compatible and compatible with the origin
