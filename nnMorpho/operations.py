@@ -402,4 +402,3 @@ def _closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
         """
     return _erosion(_dilation(input_tensor, structural_element, origin, border_value_dilation),
                     structural_element, origin, border_value_erosion)
-

@@ -2,9 +2,10 @@ from distutils.core import setup
 setup(
   name='nnMorpho',
   packages=['nnMorpho'],
-  version='1.2.0',
+  version='2.0.0',
   license='MIT',
-  description='A library for general purpose Mathematical Morphology',
+  description='A library for GPU-accelerated and Machine-Learning adapted'
+              ' Mathematical Morphology',
   author='Gonzalo Romero-García',
   author_email='tritery@hotmail.com',
   url='https://github.com/Manza12/nnMorpho',
@@ -12,10 +13,7 @@ setup(
   keywords=['Mathematical Morphology', 'PyTorch', 'GPU', 'CUDA'],
   install_requires=[
           'numpy',
-          'torch',
-          'matplotlib',
-          'scipy',
-          'imageio'
+          'torch'
       ],
   classifiers=[
     'Development Status :: 3 - Alpha',
