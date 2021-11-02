@@ -6,18 +6,18 @@ from nnMorpho.checks import check_parameters, check_parameters_partial
 def erosion(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
             border_value: Union[int, float, str] = 'geodesic'):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
-        erosion of an input tensor by a structural element.
+        erosion of an input tensor by a structuring element.
 
         Parameters
         ----------
         :param input_tensor: torch.Tensor
             The input tensor that you want to erode. It should be a PyTorch tensor of arbitrary dimension. The
-            dimensions that will be eroded are determined by the structural element.
+            dimensions that will be eroded are determined by the structuring element.
         :param structuring_element: torch.Tensor
-            The structural element to erode. The structural element should be a PyTorch tensor of arbitrary dimension.
+            The structuring element to erode. The structuring element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
-            The origin of the structural element. Default to (0, 0). Negative indexes are allowed.
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
         :param border_value: int, float, str
             The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
             - 'geodesic': only points within the input are considered when taking the minimum.
@@ -125,18 +125,18 @@ def partial_erosion(input_tensor: torch.Tensor, structuring_element: torch.Tenso
 def dilation(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
              border_value: Union[int, float, str] = 'geodesic'):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
-        dilation of an input tensor by a structural element.
+        dilation of an input tensor by a structuring element.
 
         Parameters
         ----------
         :param input_tensor: torch.Tensor
             The input tensor that you want to dilate. It should be a PyTorch tensor of arbitrary dimension. The
-            dimensions that will be dilated are determined by the structural element.
+            dimensions that will be dilated are determined by the structuring element.
         :param structuring_element: torch.Tensor
-            The structural element to dilate. The structural element should be a PyTorch tensor of arbitrary dimension.
+            The structuring element to dilate. The structuring element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
-            The origin of the structural element. Default to (0, 0). Negative indexes are allowed.
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
         :param border_value: int, float, str
             The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
             - 'geodesic': only points within the input are considered when taking the maximum.
@@ -206,18 +206,18 @@ def dilation(input_tensor: torch.Tensor, structuring_element: torch.Tensor, orig
 def opening(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
             border_value: Union[int, float, str] = 'geodesic'):
     """ Opening is one of the derived operations of Mathematical Morphology: it consists on eroding an image and then
-        dilating it. This function computes the grayscale opening of an image by a structural element.
+        dilating it. This function computes the grayscale opening of an image by a structuring element.
 
         Parameters
         ----------
         :param input_tensor: torch.Tensor
             The input tensor that you want to open. It should be a PyTorch tensor of arbitrary dimension. The
-            dimensions that will be opened are determined by the structural element.
+            dimensions that will be opened are determined by the structuring element.
         :param structuring_element: torch.Tensor
-            The structural element to open. The structural element should be a PyTorch tensor of arbitrary dimension.
+            The structuring element to open. The structuring element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
-            The origin of the structural element. Default to (0, 0). Negative indexes are allowed.
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
         :param border_value: int, float, str
             The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
             - 'geodesic': only points within the input are considered when taking the minimum and the maximum.
@@ -229,36 +229,27 @@ def opening(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origi
         :return: torch.Tensor
             The opening as a PyTorch tensor of the same shape than the original input.
         """
-    # Check parameters
-    check_parameters(input_tensor, structuring_element, origin, border_value)
-
-    # Fill border value if needed
-    border_value_erosion = fill_border(border_value, 'erosion')
-    border_value_dilation = fill_border(border_value, 'dilation')
-
-    # Convert tensor to float if needed
-    input_tensor = convert_float(input_tensor)
 
     # Compute the opening
-    return dilation(erosion(input_tensor, structuring_element, origin, border_value_erosion),
-                    structuring_element, origin, border_value_dilation)
+    return dilation(erosion(input_tensor, structuring_element, origin, border_value),
+                    structuring_element, origin, border_value)
 
 
 def closing(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
             border_value: Union[int, float, str] = 'geodesic'):
     """ Closing is one of the derived operations of Mathematical Morphology: it consists on dilating an image and then
-        eroding it. This function computes the grayscale closing of an image by a structural element.
+        eroding it. This function computes the grayscale closing of an image by a structuring element.
 
         Parameters
         ----------
         :param input_tensor: torch.Tensor
             The input tensor that you want to close. It should be a PyTorch tensor of arbitrary dimension. The
-            dimensions that will be closed are determined by the structural element.
+            dimensions that will be closed are determined by the structuring element.
         :param structuring_element: torch.Tensor
-            The structural element to close. The structural element should be a PyTorch tensor of arbitrary dimension.
+            The structuring element to close. The structuring element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
-            The origin of the structural element. Default to (0, 0). Negative indexes are allowed.
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
         :param border_value: int, float, str
             The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
             - 'geodesic': only points within the input are considered when taking the maximum and the minimum.
@@ -270,16 +261,178 @@ def closing(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origi
         :return: torch.Tensor
             The closing as a PyTorch tensor of the same shape than the original input.
         """
-    # Check parameters
-    check_parameters(input_tensor, structuring_element, origin, border_value)
-
-    # Fill border value if needed
-    border_value_erosion = fill_border(border_value, 'erosion')
-    border_value_dilation = fill_border(border_value, 'dilation')
-
-    # Convert tensor to float if needed
-    input_tensor = convert_float(input_tensor)
 
     # Compute the closing
-    return erosion(dilation(input_tensor, structuring_element, origin, border_value_dilation),
-                   structuring_element, origin, border_value_erosion)
+    return erosion(dilation(input_tensor, structuring_element, origin, border_value),
+                   structuring_element, origin, border_value)
+
+
+def top_hat(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
+            border_value: Union[int, float, str] = 'geodesic'):
+    """ Top-hat transform is one of the differential operations of Mathematical Morphology:
+        it consists subtracting the opening of an image to the image itself. 
+        This function computes the grayscale top-hat of an image by a structuring element.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+            The input tensor that you want to transform. It should be a PyTorch tensor of arbitrary dimension. The
+            dimensions that will be transformed are determined by the structuring element.
+        :param structuring_element: torch.Tensor
+            The structuring element to transform. The structuring element should be a PyTorch tensor of arbitrary
+            dimension. Its shape should coincide with the shape of the last dimensions of the input_tensor.
+        :param origin: tuple, List[int]
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
+        :param border_value: int, float, str
+            The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
+            - 'geodesic': only points within the input are considered when taking the maximum and the minimum.
+            - 'euclidean': extends naturally the image setting minus infinite value to the border.
+            Default value is 'geodesic'.
+
+        Outputs
+        -------
+        :return: torch.Tensor
+            The top-hat as a PyTorch tensor of the same shape than the original input.
+        """
+
+    # Compute the top-hat transform
+    return input_tensor - opening(input_tensor, structuring_element, origin, border_value)
+
+
+def bottom_hat(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
+               border_value: Union[int, float, str] = 'geodesic'):
+    """ Black Top-hat transform is one of the differential operations of Mathematical Morphology:
+        it consists subtracting an image to the closing of the image.
+        This function computes the grayscale black top-hat of an image by a structuring element.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+            The input tensor that you want to transform. It should be a PyTorch tensor of arbitrary dimension. The
+            dimensions that will be transformed are determined by the structuring element.
+        :param structuring_element: torch.Tensor
+            The structuring element to transform. The structuring element should be a PyTorch tensor of arbitrary
+            dimension. Its shape should coincide with the shape of the last dimensions of the input_tensor.
+        :param origin: tuple, List[int]
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
+        :param border_value: int, float, str
+            The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
+            - 'geodesic': only points within the input are considered when taking the maximum and the minimum.
+            - 'euclidean': extends naturally the image setting minus infinite value to the border.
+            Default value is 'geodesic'.
+
+        Outputs
+        -------
+        :return: torch.Tensor
+            The black top-hat as a PyTorch tensor of the same shape than the original input.
+        """
+
+    # Compute the black top-hat transform
+    return closing(input_tensor, structuring_element, origin, border_value) - input_tensor
+
+
+def internal_gradient(input_tensor: torch.Tensor,
+                      structuring_element: torch.Tensor,
+                      origin: Union[tuple, List[int]] = (0, 0),
+                      border_value: Union[int, float, str] = 'geodesic'):
+    """ Internal gradient is one of the differential operations of Mathematical Morphology:
+        it consists subtracting the erosion of an image to the image itself.
+        This function computes the internal gradient of an image by a structuring element.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+            The input tensor that you want to transform. It should be a PyTorch tensor of arbitrary dimension. The
+            dimensions that will be transformed are determined by the structuring element.
+        :param structuring_element: torch.Tensor
+            The structuring element to transform. The structuring element should be a PyTorch tensor of arbitrary
+            dimension. Its shape should coincide with the shape of the last dimensions of the input_tensor.
+        :param origin: tuple, List[int]
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
+        :param border_value: int, float, str
+            The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
+            - 'geodesic': only points within the input are considered when taking the maximum and the minimum.
+            - 'euclidean': extends naturally the image setting minus infinite value to the border.
+            Default value is 'geodesic'.
+
+        Outputs
+        -------
+        :return: torch.Tensor
+            The internal gradient as a PyTorch tensor of the same shape than the original input.
+        """
+
+    # Compute the internal gradient
+    return input_tensor - erosion(input_tensor, structuring_element, origin, border_value)
+
+
+def external_gradient(input_tensor: torch.Tensor,
+                      structuring_element: torch.Tensor,
+                      origin: Union[tuple, List[int]] = (0, 0),
+                      border_value: Union[int, float, str] = 'geodesic'):
+    """ External gradient is one of the differential operations of Mathematical Morphology:
+        it consists subtracting an image to the dilation of the image.
+        This function computes the external gradient of an image by a structuring element.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+            The input tensor that you want to transform. It should be a PyTorch tensor of arbitrary dimension. The
+            dimensions that will be transformed are determined by the structuring element.
+        :param structuring_element: torch.Tensor
+            The structuring element to transform. The structuring element should be a PyTorch tensor of arbitrary
+            dimension. Its shape should coincide with the shape of the last dimensions of the input_tensor.
+        :param origin: tuple, List[int]
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
+        :param border_value: int, float, str
+            The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
+            - 'geodesic': only points within the input are considered when taking the maximum and the minimum.
+            - 'euclidean': extends naturally the image setting minus infinite value to the border.
+            Default value is 'geodesic'.
+
+        Outputs
+        -------
+        :return: torch.Tensor
+            The external gradient as a PyTorch tensor of the same shape than the original input.
+        """
+
+    # Compute the internal gradient
+    return dilation(input_tensor, structuring_element, origin, border_value) - input_tensor
+
+
+def gradient(input_tensor: torch.Tensor,
+             structuring_element: torch.Tensor,
+             origin: Union[tuple, List[int]] = (0, 0),
+             border_value: Union[int, float, str] = 'geodesic'):
+    """ Gradient is one of the differential operations of Mathematical Morphology:
+        it consists subtracting the erosion of an image to the dilation of the image.
+        This function computes the gradient of an image by a structuring element.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+            The input tensor that you want to transform. It should be a PyTorch tensor of arbitrary dimension. The
+            dimensions that will be transformed are determined by the structuring element.
+        :param structuring_element: torch.Tensor
+            The structuring element to transform. The structuring element should be a PyTorch tensor of arbitrary
+            dimension. Its shape should coincide with the shape of the last dimensions of the input_tensor.
+        :param origin: tuple, List[int]
+            The origin of the structuring element. Default to (0, 0). Negative indexes are allowed.
+        :param border_value: int, float, str
+            The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
+            - 'geodesic': only points within the input are considered when taking the maximum and the minimum.
+            - 'euclidean': extends naturally the image setting minus infinite value to the border.
+            Default value is 'geodesic'.
+
+        Outputs
+        -------
+        :return: torch.Tensor
+            The gradient as a PyTorch tensor of the same shape than the original input.
+        """
+
+    # Compute the internal gradient
+    return dilation(input_tensor, structuring_element, origin,
+                    border_value) - erosion(input_tensor, structuring_element, origin, border_value)
+
+
+white_top_hat = top_hat
+black_top_hat = bottom_hat
