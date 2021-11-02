@@ -1,83 +1,6 @@
 from nnMorpho.parameters import *
-
-
-def pad_tensor(input_tensor, origin, structural_element, border_value):
-    pad_list = []
-    for dim in range(structural_element.ndim):
-        pad_list += [origin[-dim + 1], structural_element.shape[-dim + 1] - origin[-dim + 1] - 1]
-    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
-    return input_pad
-
-
-def check_parameters(input_tensor, structural_element, origin, border_value):
-    # Check types
-    assert type(input_tensor) == torch.Tensor, 'Input type should be torch.Tensor.'
-    assert type(structural_element) == torch.Tensor, 'Structural element type should be torch.Tensor.'
-    assert type(origin) in [tuple, List[int]], 'Origin type should be tuple or list[int].'
-    assert type(border_value) in [int, float, str], 'Border value type should be int, float or string.'
-
-    # Check dimension of input and structural element are compatible and compatible with the origin
-    assert input_tensor.ndim >= structural_element.ndim, "Input's dimension should be bigger than the structural " \
-                                                         "element's one"
-    assert structural_element.ndim == len(origin), "The length of the origin should be the same as the number of " \
-                                                   "dimensions of the structural element."
-    dim_shift = input_tensor.ndim - structural_element.ndim
-
-    # Check origin
-    for dim in range(structural_element.ndim):
-        assert - input_tensor.shape[dim_shift + dim] < origin[dim] \
-               < structural_element.shape[dim] + input_tensor.shape[dim_shift + dim] - 1, \
-               'Invalid origin. Structural element and input should intersect at least in one point.'
-
-
-def check_parameters_partial(input_tensor, structural_element, origin, border_value):
-    # Check types
-    assert type(input_tensor) == torch.Tensor, 'Input type should be torch.Tensor.'
-    assert type(structural_element) == torch.Tensor, 'Structural element type should be torch.Tensor.'
-    assert type(origin) in [tuple, List[int]], 'Origin type should be tuple or list[int].'
-    assert type(border_value) in [int, float, str], 'Border value type should be int, float or string.'
-
-    # Check dimension of input and structural element are compatible
-    assert input_tensor.ndim == structural_element.ndim, "Input's dimension should be the same as the structural " \
-                                                         "element's ones"
-    assert input_tensor.shape[0] == structural_element.shape[0], "First dimension should coincide between input and " \
-                                                                 "structural element."
-
-    # Check origin
-    assert len(origin) == 1, "Only origin for the second dimension is needed."
-    assert - input_tensor.shape[1] < origin[0] < structural_element.shape[1] + input_tensor.shape[1] - 1, \
-        'Invalid origin. Structural element and input should intersect at least in one point.'
-
-
-def fill_border(border_value, operation):
-    if type(border_value) == str:
-        if border_value == 'geodesic':
-            if operation == 'erosion':
-                border_value = INF
-            elif operation == 'dilation':
-                border_value = -INF
-            else:
-                raise ValueError("Invalid operation; should be 'erosion' or 'dilation'")
-        elif border_value == 'euclidean':
-            border_value = -INF
-        else:
-            ValueError("Currently string options for border value are: 'geodesic' and 'euclidean'")
-    elif type(border_value) in [int, float]:
-        pass
-    else:
-        raise ValueError('The type of the border value should be string, int or float.')
-
-    return border_value
-
-
-def convert_float(input_tensor, warn=True):
-    if not input_tensor.dtype == torch.float32:
-        if warn:
-            warnings.warn('Casting image type (%r) to float32 since nnMorpho only supports float32 tensors.'
-                          % input_tensor.dtype)
-        input_tensor = input_tensor.float()
-
-    return input_tensor
+from nnMorpho.utils import pad_tensor, fill_border, convert_float
+from nnMorpho.checks import check_parameters, check_parameters_partial
 
 
 def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
@@ -116,15 +39,6 @@ def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     input_tensor = convert_float(input_tensor)
 
     # Compute erosion
-    return _erosion(input_tensor, structural_element, origin, border_value)
-
-
-def _erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]],
-             border_value: Union[int, float]):
-    """ Computation of the erosion
-        See :erosion for information about inputs, parameters and outputs.
-    """
-
     if str(input_tensor.device) == 'cpu':
         # Pad input
         input_pad = pad_tensor(input_tensor, origin, structural_element, border_value)
@@ -195,19 +109,11 @@ def partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor
     # Convert tensor to float if needed
     input_tensor = convert_float(input_tensor)
 
-    # Compute erosion
-    return _partial_erosion(input_tensor, structural_element, origin, border_value)
-
-
-def _partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]],
-                     border_value: Union[int, float]):
-    """ Computation of the partial erosion
-        See :partial_erosion for information about inputs, parameters and outputs.
-    """
     # Pad input
     pad_list = [origin[0], structural_element.shape[1] - origin[0] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
+    # Compute erosion
     if str(input_tensor.device) == 'cpu':
         raise NotImplementedError("CPU computation is not implemented yet for partial erosion.")
     else:
@@ -252,15 +158,6 @@ def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     input_tensor = convert_float(input_tensor)
 
     # Compute the dilation
-    return _dilation(input_tensor, structural_element, origin, border_value)
-
-
-def _dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]],
-              border_value: Union[int, float]):
-    """ Computation of the dilation
-        See :dilation for information about input, parameters and output.
-    """
-
     if str(input_tensor.device) == 'cpu':
         # Pad input
         input_pad = pad_tensor(input_tensor, origin, structural_element, border_value)
@@ -343,16 +240,8 @@ def opening(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     input_tensor = convert_float(input_tensor)
 
     # Compute the opening
-    return _opening(input_tensor, structural_element, origin, border_value_erosion, border_value_dilation)
-
-
-def _opening(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]],
-             border_value_erosion: Union[int, float], border_value_dilation: Union[int, float]):
-    """ Computation of the opening
-            See :opening for information about input, parameters and output.
-        """
-    return _dilation(_erosion(input_tensor, structural_element, origin, border_value_erosion),
-                     structural_element, origin, border_value_dilation)
+    return dilation(erosion(input_tensor, structural_element, origin, border_value_erosion),
+                    structural_element, origin, border_value_dilation)
 
 
 def closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
@@ -392,13 +281,5 @@ def closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     input_tensor = convert_float(input_tensor)
 
     # Compute the closing
-    return _closing(input_tensor, structural_element, origin, border_value_dilation, border_value_erosion)
-
-
-def _closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]],
-             border_value_dilation: Union[int, float], border_value_erosion: Union[int, float]):
-    """ Computation of the closing
-            See :closing for information about input, parameters and output.
-        """
-    return _erosion(_dilation(input_tensor, structural_element, origin, border_value_dilation),
-                    structural_element, origin, border_value_erosion)
+    return erosion(dilation(input_tensor, structural_element, origin, border_value_dilation),
+                   structural_element, origin, border_value_erosion)
