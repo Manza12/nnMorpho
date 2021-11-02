@@ -12,7 +12,7 @@ class ErosionFunction(torch.autograd.Function):
         try:
             strel_tensor = args[1]
         except IndexError:
-            raise Exception('Insufficient parameters: second argument should be the structural element.')
+            raise Exception('Insufficient parameters: second argument should be the structuring element.')
 
         try:
             origin = args[2]
@@ -100,7 +100,7 @@ class DilationFunction(torch.autograd.Function):
         try:
             strel_tensor = args[1]
         except IndexError:
-            raise Exception('Insufficient parameters: second argument should be the structural element.')
+            raise Exception('Insufficient parameters: second argument should be the structuring element.')
 
         try:
             origin = args[2]

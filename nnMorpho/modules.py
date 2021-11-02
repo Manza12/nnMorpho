@@ -1,6 +1,6 @@
 from nnMorpho.parameters import *
 from nnMorpho.functions import ErosionFunction, DilationFunction
-from nnMorpho.operations import fill_border, _erosion
+from nnMorpho.operations import fill_border
 
 
 # Todo: check parameters OK when initializing modules
@@ -10,14 +10,11 @@ class Erosion(Module):
         self.shape = shape
         self.origin = origin
         self.border_value = border_value
-        self.structural_element = torch.nn.Parameter(torch.randn(shape))
-        self.structural_element.requires_grad = True
+        self.structuring_element = torch.nn.Parameter(torch.randn(shape))
+        self.structuring_element.requires_grad = True
 
     def forward(self, image: Tensor) -> Tensor:
-        if not str(image.device) == 'cpu':
-            return ErosionFunction.apply(image, self.structural_element, self.origin, self.border_value)
-        else:
-            return _erosion(image, self.structural_element, self.origin, self.border_value)
+        return ErosionFunction.apply(image, self.structuring_element, self.origin, self.border_value)
 
 
 class Dilation(Module):
@@ -26,11 +23,11 @@ class Dilation(Module):
         self.shape = shape
         self.origin = origin
         self.border_value = border_value
-        self.structural_element = torch.nn.Parameter(torch.randn(shape))
-        self.structural_element.requires_grad = True
+        self.structuring_element = torch.nn.Parameter(torch.randn(shape))
+        self.structuring_element.requires_grad = True
 
     def forward(self, image: Tensor) -> Tensor:
-        return DilationFunction.apply(image, self.structural_element, self.origin, self.border_value)
+        return DilationFunction.apply(image, self.structuring_element, self.origin, self.border_value)
 
 
 class Opening(Module):
@@ -38,8 +35,8 @@ class Opening(Module):
         super(Opening, self).__init__()
         self.shape = shape
         self.origin = origin
-        self.structural_element = torch.nn.Parameter(torch.randn(shape))
-        self.structural_element.requires_grad = True
+        self.structuring_element = torch.nn.Parameter(torch.randn(shape))
+        self.structuring_element.requires_grad = True
 
         # Fill border value if needed
         border_value_erosion = fill_border(border_value, 'erosion')
@@ -50,8 +47,8 @@ class Opening(Module):
     def forward(self, image: Tensor) -> Tensor:
         return DilationFunction.apply(
             ErosionFunction.apply(
-                image, self.structural_element, self.origin, self.border_value_erosion),
-            self.structural_element, self.origin, self.border_value_dilation)
+                image, self.structuring_element, self.origin, self.border_value_erosion),
+            self.structuring_element, self.origin, self.border_value_dilation)
 
 
 class Closing(Module):
@@ -59,8 +56,8 @@ class Closing(Module):
         super(Closing, self).__init__()
         self.shape = shape
         self.origin = origin
-        self.structural_element = torch.nn.Parameter(torch.randn(shape))
-        self.structural_element.requires_grad = True
+        self.structuring_element = torch.nn.Parameter(torch.randn(shape))
+        self.structuring_element.requires_grad = True
 
         # Fill border value if needed
         border_value_erosion = fill_border(border_value, 'erosion')
@@ -71,12 +68,12 @@ class Closing(Module):
     def forward(self, image: Tensor) -> Tensor:
         return ErosionFunction.apply(
             DilationFunction.apply(
-                image, self.structural_element, self.origin, self.border_value_dilation),
-            self.structural_element, self.origin, self.border_value_erosion)
+                image, self.structuring_element, self.origin, self.border_value_dilation),
+            self.structuring_element, self.origin, self.border_value_erosion)
 
 
-def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, structural_element_form: str,
-                  structural_element_shape: tuple, structural_element_origin: Union[str, tuple], model_shape: tuple,
+def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, structuring_element_form: str,
+                  structuring_element_shape: tuple, structuring_element_origin: Union[str, tuple], model_shape: tuple,
                   model_origin: tuple, iterations: int, iterations_per_step: int, plot_start: bool, plot_steps: bool,
                   loss_scale: str, use_border: bool, learning_rate: float, _batched_images: bool):
     """ Test the learning of the modules
@@ -86,23 +83,23 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
             The image to test with.
         :param operation_str: str
             The string of the operation to test with. Options are: 'erosion', 'dilation', 'opening' and 'closing'.
-        :param structural_element_form: str
-            The form of the structural element. Options are: 'square', 'cross' and 'rake'
-        :param structural_element_shape: tuple
-            The shape os the structural element. Should be a tuple of two integers.
-        :param structural_element_origin: str, tuple
-            The origin of the structural element. Options are: 'half' for centered origin or a tuple of integers marking
-            the origin.
+        :param structuring_element_form: str
+            The form of the structuring element. Options are: 'square', 'cross' and 'rake'
+        :param structuring_element_shape: tuple
+            The shape os the structuring element. Should be a tuple of two integers.
+        :param structuring_element_origin: str, tuple
+            The origin of the structuring element. Options are: 'half' for centered origin or a tuple of integers
+            marking the origin.
         :param model_shape: tuple
-            The shape of the structural element of the model. Should be bigger than the actual structural element.
+            The shape of the structuring element of the model. Should be bigger than the actual structuring element.
         :param model_origin: tuple
-            The origin of the structural element of the model.
+            The origin of the structuring element of the model.
         :param iterations: int
             Number of iterations of the learning process.
         :param iterations_per_step: int
             Number of iterations between prints of the loss.
         :param plot_start: bool
-            If True, the structural element, original image and target image are shown at the beginning.
+            If True, the structuring element, original image and target image are shown at the beginning.
         :param plot_steps: bool
             If True, the predicted and target image are shown when printing the loss.
         :param loss_scale: str
@@ -118,13 +115,13 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
         log_scale, lin_scale
 
     # Prints
-    print("Learning the structural element of %r." % operation_str)
+    print("Learning the structuring element of %r." % operation_str)
     print("Parameters:")
     print("Image size:", image.shape)
     print("Operation:", operation_str)
-    print("structural_element_form:", structural_element_form)
-    print("structural_element_shape:", structural_element_shape)
-    print("structural_element_origin:", structural_element_origin)
+    print("structuring_element_form:", structuring_element_form)
+    print("structuring_element_shape:", structuring_element_shape)
+    print("structuring_element_origin:", structuring_element_origin)
     print("model_shape:", model_shape)
     print("model_origin:", model_origin)
     print("iterations:", iterations)
@@ -151,19 +148,19 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
     else:
         raise ValueError('Invalid operation_str.')
 
-    # Structural element
-    assert_2d_tuple(structural_element_shape, 'structural_element_shape', positive=True)
-    structural_element = get_strel(structural_element_form, structural_element_shape, increment=5)
+    # structuring element
+    assert_2d_tuple(structuring_element_shape, 'structuring_element_shape', positive=True)
+    structuring_element = get_strel(structuring_element_form, structuring_element_shape, increment=5)
 
-    if structural_element_origin == 'half':
-        structural_element_origin = (structural_element_shape[0] // 2, structural_element_shape[1] // 2)
-    elif type(structural_element_origin) == tuple:
-        assert_2d_tuple(structural_element_origin, 'structural_element_origin')
+    if structuring_element_origin == 'half':
+        structuring_element_origin = (structuring_element_shape[0] // 2, structuring_element_shape[1] // 2)
+    elif type(structuring_element_origin) == tuple:
+        assert_2d_tuple(structuring_element_origin, 'structuring_element_origin')
     else:
-        raise ValueError("Invalid parameter structural_element_origin. Value should be either 'half' either a tuple.")
+        raise ValueError("Invalid parameter structuring_element_origin. Value should be either 'half' either a tuple.")
 
     if plot_start:
-        plot_image(structural_element, title='Structural element', origin=structural_element_origin,
+        plot_image(structuring_element, title='structuring element', origin=structuring_element_origin,
                    v_min=-10, v_max=20)
 
     # Original image
@@ -176,19 +173,19 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
         original_image = create_image(plot=False)
 
         if operation_str in ['erosion', 'opening']:
-            original_image = dilation(original_image, structural_element, structural_element_origin, -INF)
+            original_image = dilation(original_image, structuring_element, structuring_element_origin, -INF)
 
         if plot_start:
             plot_image(original_image, title='Original image', v_min=0, v_max=255)
 
     # Target image
-    y = operation(original_image, structural_element, origin=structural_element_origin, border_value='geodesic')
+    y = operation(original_image, structuring_element, origin=structuring_element_origin, border_value='geodesic')
 
     if not use_border:
-        x_1 = structural_element_origin[0]
-        x_2 = y.shape[0] - structural_element.shape[0] + structural_element_origin[0] + 1
-        y_1 = structural_element_origin[1]
-        y_2 = y.shape[1] - structural_element.shape[1] + structural_element_origin[1] + 1
+        x_1 = structuring_element_origin[0]
+        x_2 = y.shape[0] - structuring_element.shape[0] + structuring_element_origin[0] + 1
+        y_1 = structuring_element_origin[1]
+        y_2 = y.shape[1] - structuring_element.shape[1] + structuring_element_origin[1] + 1
 
         target_image = y[x_1:x_2, y_1:y_2]
     else:
@@ -239,7 +236,7 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
             if plot_steps:
                 plot_image(y_predicted, title='Predicted image at iteration %r' % t, show=False, v_min=0, v_max=255)
                 plot_image(y, title='Target image', show=False, v_min=0, v_max=255)
-                plot_image(model.structural_element, title='Learned structural element', v_min=-10, v_max=20)
+                plot_image(model.structuring_element, title='Learned structuring element', v_min=-10, v_max=20)
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
@@ -267,19 +264,19 @@ def test_learning(image: Union[str, Tensor, NoneType], operation_str: str, struc
         plot_image(target_image, title='Target image', show=False, v_min=0, v_max=255, name='target_image')
         plot_image(output_image, title='Predicted image', show=False,  v_min=0, v_max=255, name='predicted_image')
 
-    plot_image(f.pad(structural_element,
-                     [(model.shape[0] - structural_element.shape[0]) // 2,
-                      (model.shape[0] - structural_element.shape[0]) // 2,
-                      (model.shape[1] - structural_element.shape[1]) // 2,
-                      (model.shape[1] - structural_element.shape[1]) // 2],
+    plot_image(f.pad(structuring_element,
+                     [(model.shape[0] - structuring_element.shape[0]) // 2,
+                      (model.shape[0] - structuring_element.shape[0]) // 2,
+                      (model.shape[1] - structuring_element.shape[1]) // 2,
+                      (model.shape[1] - structuring_element.shape[1]) // 2],
                      mode='constant', value=-INF),
-               title='Original structural element',
-               origin=(structural_element_origin[0] + structural_element.shape[0] // 2 - 1,
-                       structural_element_origin[1] + structural_element.shape[1] // 2 - 1),
-               show=False, v_min=-10, v_max=20, name='original_structural_element')
+               title='Original structuring element',
+               origin=(structuring_element_origin[0] + structuring_element.shape[0] // 2 - 1,
+                       structuring_element_origin[1] + structuring_element.shape[1] // 2 - 1),
+               show=False, v_min=-10, v_max=20, name='original_structuring_element')
 
-    plot_image(model.structural_element, title='Learned structural element', origin=model_origin,
-               v_min=-10, v_max=20, name='learned_structural_element')
+    plot_image(model.structuring_element, title='Learned structuring element', origin=model_origin,
+               v_min=-10, v_max=20, name='learned_structuring_element')
 
 
 if __name__ == '__main__':
@@ -291,10 +288,10 @@ if __name__ == '__main__':
     # Operation parameters
     _operations = ['erosion']  # , 'dilation', 'opening', 'closing']
 
-    # Structural element parameters
-    _structural_element_form = 'cross'
-    _structural_element_shape = (5, 5)
-    _structural_element_origin = (_structural_element_shape[0] // 2, _structural_element_shape[1] // 2)
+    # structuring element parameters
+    _structuring_element_form = 'cross'
+    _structuring_element_shape = (5, 5)
+    _structuring_element_origin = (_structuring_element_shape[0] // 2, _structuring_element_shape[1] // 2)
 
     # Model parameters
     _model_shape = (7, 7)
@@ -341,6 +338,6 @@ if __name__ == '__main__':
     # Learning
     for _operation_str in _operations:
         print("")
-        test_learning(_image_tensor, _operation_str, _structural_element_form, _structural_element_shape,
-                      _structural_element_origin, _model_shape, _model_origin, _iterations, _iterations_per_step,
+        test_learning(_image_tensor, _operation_str, _structuring_element_form, _structuring_element_shape,
+                      _structuring_element_origin, _model_shape, _model_origin, _iterations, _iterations_per_step,
                       _plot_start, _plot_steps, _loss_scale, _use_border, _learning_rate, _batched_images)

@@ -3,7 +3,7 @@ from nnMorpho.utils import pad_tensor, fill_border, convert_float
 from nnMorpho.checks import check_parameters, check_parameters_partial
 
 
-def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
+def erosion(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
             border_value: Union[int, float, str] = 'geodesic'):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         erosion of an input tensor by a structural element.
@@ -13,7 +13,7 @@ def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
         :param input_tensor: torch.Tensor
             The input tensor that you want to erode. It should be a PyTorch tensor of arbitrary dimension. The
             dimensions that will be eroded are determined by the structural element.
-        :param structural_element: torch.Tensor
+        :param structuring_element: torch.Tensor
             The structural element to erode. The structural element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
@@ -30,7 +30,7 @@ def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
             The erosion as a PyTorch tensor of the same shape than the original input.
     """
     # Check parameters
-    check_parameters(input_tensor, structural_element, origin, border_value)
+    check_parameters(input_tensor, structuring_element, origin, border_value)
 
     # Fill border value if needed
     border_value = fill_border(border_value, 'erosion')
@@ -41,37 +41,37 @@ def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     # Compute erosion
     if str(input_tensor.device) == 'cpu':
         # Pad input
-        input_pad = pad_tensor(input_tensor, origin, structural_element, border_value)
+        input_pad = pad_tensor(input_tensor, origin, structuring_element, border_value)
 
         # Unfold the input
         input_unfolded = input_pad
-        dim_shift = input_tensor.ndim - structural_element.ndim
-        for dim in range(structural_element.ndim):
-            input_unfolded = input_unfolded.unfold(dim_shift + dim, structural_element.shape[dim], 1)
+        dim_shift = input_tensor.ndim - structuring_element.ndim
+        for dim in range(structuring_element.ndim):
+            input_unfolded = input_unfolded.unfold(dim_shift + dim, structuring_element.shape[dim], 1)
 
         # Differences
-        result = input_unfolded - structural_element
+        result = input_unfolded - structuring_element
 
         # Take the minimum
-        for dim in range(structural_element.ndim):
+        for dim in range(structuring_element.ndim):
             result, _ = torch.min(result, dim=-1)
     else:
-        if structural_element.ndim == 2:
+        if structuring_element.ndim == 2:
             # Pad input
-            pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
-                        origin[0], structural_element.shape[0] - origin[0] - 1]
+            pad_list = [origin[1], structuring_element.shape[1] - origin[1] - 1,
+                        origin[0], structuring_element.shape[0] - origin[0] - 1]
             input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
-            if input_tensor.ndim - structural_element.ndim == 0:
-                result = morphology_cuda.erosion(input_pad, structural_element, BLOCK_SHAPE)
-            elif input_tensor.ndim - structural_element.ndim == 1:
-                result = morphology_cuda.erosion_batched(input_pad, structural_element, BLOCK_SHAPE)
-            elif input_tensor.ndim - structural_element.ndim == 2:
+            if input_tensor.ndim - structuring_element.ndim == 0:
+                result = morphology_cuda.erosion(input_pad, structuring_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structuring_element.ndim == 1:
+                result = morphology_cuda.erosion_batched(input_pad, structuring_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structuring_element.ndim == 2:
                 batch_channel_dim = input_pad.shape[0] * input_pad.shape[1]
                 input_height = input_pad.shape[2]
                 input_width = input_pad.shape[3]
                 input_view = input_pad.view(batch_channel_dim, input_height, input_width)
-                result = morphology_cuda.erosion_batched(input_view, structural_element, BLOCK_SHAPE)
+                result = morphology_cuda.erosion_batched(input_view, structuring_element, BLOCK_SHAPE)
                 result = result.view(*input_tensor.shape)
             else:
                 raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
@@ -84,7 +84,7 @@ def erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     return result
 
 
-def partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor,
+def partial_erosion(input_tensor: torch.Tensor, structuring_element: torch.Tensor,
                     origin: Union[tuple, List[int]] = (0, 0), border_value: Union[int, float, str] = 'geodesic'):
     # ToDo: Improve the documentation
     """ Partial erosion is a new operation that does a one-dimension-long erosion.
@@ -92,7 +92,7 @@ def partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor
         Parameters
         ----------
         :param input_tensor: torch.Tensor
-        :param structural_element: torch.Tensor
+        :param structuring_element: torch.Tensor
         :param origin: tuple, List[int]
         :param border_value: int, float, str
 
@@ -101,7 +101,7 @@ def partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor
         :return: torch.Tensor
     """
     # Check parameters
-    check_parameters_partial(input_tensor, structural_element, origin, border_value)
+    check_parameters_partial(input_tensor, structuring_element, origin, border_value)
 
     # Fill border value if needed
     border_value = fill_border(border_value, 'erosion')
@@ -110,19 +110,19 @@ def partial_erosion(input_tensor: torch.Tensor, structural_element: torch.Tensor
     input_tensor = convert_float(input_tensor)
 
     # Pad input
-    pad_list = [origin[0], structural_element.shape[1] - origin[0] - 1]
+    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     # Compute erosion
     if str(input_tensor.device) == 'cpu':
         raise NotImplementedError("CPU computation is not implemented yet for partial erosion.")
     else:
-        result = morphology_cuda.partial_erosion(input_pad, structural_element, BLOCK_SHAPE)
+        result = morphology_cuda.partial_erosion(input_pad, structuring_element, BLOCK_SHAPE)
 
     return result
 
 
-def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
+def dilation(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
              border_value: Union[int, float, str] = 'geodesic'):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         dilation of an input tensor by a structural element.
@@ -132,7 +132,7 @@ def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
         :param input_tensor: torch.Tensor
             The input tensor that you want to dilate. It should be a PyTorch tensor of arbitrary dimension. The
             dimensions that will be dilated are determined by the structural element.
-        :param structural_element: torch.Tensor
+        :param structuring_element: torch.Tensor
             The structural element to dilate. The structural element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
@@ -149,7 +149,7 @@ def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
             The dilation as a PyTorch tensor of the same shape than the original input.
         """
     # Check parameters
-    check_parameters(input_tensor, structural_element, origin, border_value)
+    check_parameters(input_tensor, structuring_element, origin, border_value)
 
     # Fill border value if needed
     border_value = fill_border(border_value, 'dilation')
@@ -160,37 +160,37 @@ def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     # Compute the dilation
     if str(input_tensor.device) == 'cpu':
         # Pad input
-        input_pad = pad_tensor(input_tensor, origin, structural_element, border_value)
+        input_pad = pad_tensor(input_tensor, origin, structuring_element, border_value)
 
         # Unfold the input
         input_unfolded = input_pad
-        dim_shift = input_tensor.ndim - structural_element.ndim
-        for dim in range(structural_element.ndim):
-            input_unfolded = input_unfolded.unfold(dim + dim_shift, structural_element.shape[dim], 1)
+        dim_shift = input_tensor.ndim - structuring_element.ndim
+        for dim in range(structuring_element.ndim):
+            input_unfolded = input_unfolded.unfold(dim + dim_shift, structuring_element.shape[dim], 1)
 
         # Sums
-        result = input_unfolded + torch.flip(structural_element, list(range(structural_element.ndim)))
+        result = input_unfolded + torch.flip(structuring_element, list(range(structuring_element.ndim)))
 
         # Take the maximum
-        for dim in range(structural_element.ndim):
+        for dim in range(structuring_element.ndim):
             result, _ = torch.max(result, dim=-1)
     else:
-        if structural_element.ndim == 2:
+        if structuring_element.ndim == 2:
             # Pad input
-            pad_list = [origin[1], structural_element.shape[1] - origin[1] - 1,
-                        origin[0], structural_element.shape[0] - origin[0] - 1]
+            pad_list = [origin[1], structuring_element.shape[1] - origin[1] - 1,
+                        origin[0], structuring_element.shape[0] - origin[0] - 1]
             input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
-            if input_tensor.ndim - structural_element.ndim == 0:
-                result = morphology_cuda.dilation(input_pad, structural_element, BLOCK_SHAPE)
-            elif input_tensor.ndim - structural_element.ndim == 1:
-                result = morphology_cuda.dilation_batched(input_pad, structural_element, BLOCK_SHAPE)
-            elif input_tensor.ndim - structural_element.ndim == 2:
+            if input_tensor.ndim - structuring_element.ndim == 0:
+                result = morphology_cuda.dilation(input_pad, structuring_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structuring_element.ndim == 1:
+                result = morphology_cuda.dilation_batched(input_pad, structuring_element, BLOCK_SHAPE)
+            elif input_tensor.ndim - structuring_element.ndim == 2:
                 batch_channel_dim = input_pad.shape[0] * input_pad.shape[1]
                 input_height = input_pad.shape[2]
                 input_width = input_pad.shape[3]
                 input_view = input_pad.view(batch_channel_dim, input_height, input_width)
-                result = morphology_cuda.dilation_batched(input_view, structural_element, BLOCK_SHAPE)
+                result = morphology_cuda.dilation_batched(input_view, structuring_element, BLOCK_SHAPE)
                 result = result.view(*input_tensor.shape)
             else:
                 raise NotImplementedError("Currently, nnMorpho only supports as input:\n"
@@ -203,7 +203,7 @@ def dilation(input_tensor: torch.Tensor, structural_element: torch.Tensor, origi
     return result
 
 
-def opening(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
+def opening(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
             border_value: Union[int, float, str] = 'geodesic'):
     """ Opening is one of the derived operations of Mathematical Morphology: it consists on eroding an image and then
         dilating it. This function computes the grayscale opening of an image by a structural element.
@@ -213,7 +213,7 @@ def opening(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
         :param input_tensor: torch.Tensor
             The input tensor that you want to open. It should be a PyTorch tensor of arbitrary dimension. The
             dimensions that will be opened are determined by the structural element.
-        :param structural_element: torch.Tensor
+        :param structuring_element: torch.Tensor
             The structural element to open. The structural element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
@@ -230,7 +230,7 @@ def opening(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
             The opening as a PyTorch tensor of the same shape than the original input.
         """
     # Check parameters
-    check_parameters(input_tensor, structural_element, origin, border_value)
+    check_parameters(input_tensor, structuring_element, origin, border_value)
 
     # Fill border value if needed
     border_value_erosion = fill_border(border_value, 'erosion')
@@ -240,11 +240,11 @@ def opening(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     input_tensor = convert_float(input_tensor)
 
     # Compute the opening
-    return dilation(erosion(input_tensor, structural_element, origin, border_value_erosion),
-                    structural_element, origin, border_value_dilation)
+    return dilation(erosion(input_tensor, structuring_element, origin, border_value_erosion),
+                    structuring_element, origin, border_value_dilation)
 
 
-def closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
+def closing(input_tensor: torch.Tensor, structuring_element: torch.Tensor, origin: Union[tuple, List[int]] = (0, 0),
             border_value: Union[int, float, str] = 'geodesic'):
     """ Closing is one of the derived operations of Mathematical Morphology: it consists on dilating an image and then
         eroding it. This function computes the grayscale closing of an image by a structural element.
@@ -254,7 +254,7 @@ def closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
         :param input_tensor: torch.Tensor
             The input tensor that you want to close. It should be a PyTorch tensor of arbitrary dimension. The
             dimensions that will be closed are determined by the structural element.
-        :param structural_element: torch.Tensor
+        :param structuring_element: torch.Tensor
             The structural element to close. The structural element should be a PyTorch tensor of arbitrary dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
         :param origin: tuple, List[int]
@@ -271,7 +271,7 @@ def closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
             The closing as a PyTorch tensor of the same shape than the original input.
         """
     # Check parameters
-    check_parameters(input_tensor, structural_element, origin, border_value)
+    check_parameters(input_tensor, structuring_element, origin, border_value)
 
     # Fill border value if needed
     border_value_erosion = fill_border(border_value, 'erosion')
@@ -281,5 +281,5 @@ def closing(input_tensor: torch.Tensor, structural_element: torch.Tensor, origin
     input_tensor = convert_float(input_tensor)
 
     # Compute the closing
-    return erosion(dilation(input_tensor, structural_element, origin, border_value_dilation),
-                   structural_element, origin, border_value_erosion)
+    return erosion(dilation(input_tensor, structuring_element, origin, border_value_dilation),
+                   structuring_element, origin, border_value_erosion)
