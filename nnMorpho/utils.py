@@ -1,6 +1,45 @@
 from nnMorpho.parameters import *
 
 
+def pad_tensor(input_tensor, origin, structural_element, border_value):
+    pad_list = []
+    for dim in range(structural_element.ndim):
+        pad_list += [origin[-dim + 1], structural_element.shape[-dim + 1] - origin[-dim + 1] - 1]
+    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
+    return input_pad
+
+
+def fill_border(border_value, operation):
+    if type(border_value) == str:
+        if border_value == 'geodesic':
+            if operation == 'erosion':
+                border_value = INF
+            elif operation == 'dilation':
+                border_value = -INF
+            else:
+                raise ValueError("Invalid operation; should be 'erosion' or 'dilation'")
+        elif border_value == 'euclidean':
+            border_value = -INF
+        else:
+            ValueError("Currently string options for border value are: 'geodesic' and 'euclidean'")
+    elif type(border_value) in [int, float]:
+        pass
+    else:
+        raise ValueError('The type of the border value should be string, int or float.')
+
+    return border_value
+
+
+def convert_float(input_tensor, warn=True):
+    if not input_tensor.dtype == torch.float32:
+        if warn:
+            warnings.warn('Casting image type (%r) to float32 since nnMorpho only supports float32 tensors.'
+                          % input_tensor.dtype)
+        input_tensor = input_tensor.float()
+
+    return input_tensor
+
+
 def assert_positive_integer(variable, name):
     assert type(variable) == int, 'Invalid type of parameter %r; should be an integer.' % name
     assert variable > 0, 'Invalid value of %r; should be greater than 0.' % name
