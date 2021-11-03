@@ -1,6 +1,6 @@
 from nnMorpho.parameters import *
 from nnMorpho.utils import pad_tensor, fill_border, convert_float
-from nnMorpho.checks import check_parameters, check_parameters_partial
+from nnMorpho.checks import check_parameters, check_parameters_partial, check_parameters_dependent
 
 
 def erosion(input_tensor: torch.Tensor,
@@ -459,7 +459,7 @@ def erosion_dependent(input_tensor: torch.Tensor,
             The erosion dependent of the first axis as a PyTorch tensor of the same shape than the original input.
     """
     # Check parameters
-    check_parameters(input_tensor, structuring_element, origin, border_value)
+    check_parameters_dependent(input_tensor, structuring_element, origin, border_value)
 
     # Adapt origin
     if not origin:
@@ -472,7 +472,8 @@ def erosion_dependent(input_tensor: torch.Tensor,
     input_tensor = convert_float(input_tensor)
 
     # Pad input
-    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1]
+    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1,
+                origin[1], structuring_element.shape[2] - origin[1] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     # Compute erosion
@@ -516,8 +517,7 @@ def partial_erosion(input_tensor: torch.Tensor,
     input_tensor = convert_float(input_tensor)
 
     # Pad input
-    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1,
-                origin[1], structuring_element.shape[2] - origin[1] - 1]
+    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     # Compute erosion

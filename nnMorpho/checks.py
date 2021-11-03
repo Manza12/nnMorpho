@@ -11,12 +11,13 @@ def check_parameters(input_tensor, structural_element, origin, border_value):
     # Check dimension of input and structural element are compatible and compatible with the origin
     assert input_tensor.ndim >= structural_element.ndim, "Input's dimension should be bigger than the structural " \
                                                          "element's one"
-    assert structural_element.ndim == len(origin), "The length of the origin should be the same as the number of " \
-                                                   "dimensions of the structural element."
     dim_shift = input_tensor.ndim - structural_element.ndim
 
     # Check origin
     if origin:
+        assert structural_element.ndim == len(origin), "The length of the origin should be the same as the number of " \
+                                                       "dimensions of the structural element."
+
         for dim in range(structural_element.ndim):
             assert - input_tensor.shape[dim_shift + dim] < origin[dim] \
                    < structural_element.shape[dim] + input_tensor.shape[dim_shift + dim] - 1, \
