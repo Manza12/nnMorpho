@@ -2,7 +2,7 @@ from distutils.core import setup
 setup(
   name='nnMorpho',
   packages=['nnMorpho'],
-  version='2.0.1',
+  version='2.0.2',
   license='MIT',
   description='A library for GPU-accelerated and Machine-Learning adapted'
               ' Mathematical Morphology',
