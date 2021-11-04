@@ -37,6 +37,11 @@ torch::Tensor erosion_dependent_cuda(
 		torch::Tensor input_tensor,
 		torch::Tensor strel_tensor,
 		torch::Tensor block_shape);
+
+torch::Tensor dilation_dependent_cuda(
+		torch::Tensor input_tensor,
+		torch::Tensor strel_tensor,
+		torch::Tensor block_shape);
 		
 std::vector<torch::Tensor> erosion_forward_cuda(
 		torch::Tensor input_tensor,
@@ -183,6 +188,22 @@ torch::Tensor erosion_dependent(
 	
 	// Computation
 	torch::Tensor output_tensor = erosion_dependent_cuda(input_tensor, strel_tensor, block_shape); 
+	
+	return output_tensor;
+}
+
+torch::Tensor dilation_dependent(
+		torch::Tensor input_tensor,
+		torch::Tensor strel_tensor,
+		torch::Tensor block_shape) {
+	
+	// Checks
+	CHECK_INPUT(input_tensor);
+	CHECK_INPUT(strel_tensor);
+	CHECK_SHORT(block_shape);
+	
+	// Computation
+	torch::Tensor output_tensor = dilation_dependent_cuda(input_tensor, strel_tensor, block_shape); 
 	
 	return output_tensor;
 }
@@ -343,7 +364,9 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
   m.def("dilation_batched", &dilation_batched, "Dilation batched (CUDA)");
   
   m.def("partial_erosion", &partial_erosion, "Partial erosion (CUDA)");
+  
   m.def("erosion_dependent", &erosion_dependent, "Erosion dependent (CUDA)");
+  m.def("dilation_dependent", &dilation_dependent, "Dilation dependent (CUDA)");
   
   m.def("erosion_forward", &erosion_forward, "Erosion forward (CUDA)");
   m.def("erosion_backward", &erosion_backward, "Erosion backward (CUDA)");

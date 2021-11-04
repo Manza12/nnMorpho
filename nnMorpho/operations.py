@@ -434,7 +434,7 @@ def erosion_dependent(input_tensor: torch.Tensor,
                       structuring_element: torch.Tensor,
                       origin: Optional[Union[tuple, List[int]]] = None,
                       border_value: Union[int, float, str] = 'geodesic'):
-    """ This type of erosion is needed when you want a structuring element to very along one axis.
+    """ This type of erosion is needed when you want a structuring element to vary along one axis.
 
         Parameters
         ----------
@@ -481,6 +481,61 @@ def erosion_dependent(input_tensor: torch.Tensor,
         raise ValueError('Operation currently only implemented for GPU.')
     else:
         result = morphology_cuda.erosion_dependent(input_pad, structuring_element, BLOCK_SHAPE)
+
+    return result
+
+
+def dilation_dependent(input_tensor: torch.Tensor,
+                       structuring_element: torch.Tensor,
+                       origin: Optional[Union[tuple, List[int]]] = None,
+                       border_value: Union[int, float, str] = 'geodesic'):
+    """ This type of dilation is needed when you want a structuring element to vary along one axis.
+
+        Parameters
+        ----------
+        :param input_tensor: torch.Tensor
+            The input tensor that you want to dilate. It should be a PyTorch tensor of 2 dimensions.
+        :param structuring_element: torch.Tensor
+            The structuring element to dilate. The structuring element should be a PyTorch tensor of 3 dimensions;
+            first dimension should coincide with first dimension of input_tensor and two other dimensions are the
+            shape of the structuring element.
+        :param origin: None, tuple, List[int]
+            The origin of the structuring element. Default to center of the structuring element.
+            Negative indexes are allowed. The origin will be the same for all the structuring elements.
+        :param border_value: int, float, str
+            The value used to pad the image in the border. Two options are allowed when a string is passed in parameter:
+            - 'geodesic': only points within the input are considered when taking the minimum.
+            - 'euclidean': extends naturally the image setting minus infinite value to the border.
+            Default value is 'geodesic'.
+
+        Outputs
+        -------
+        :return: torch.Tensor
+            The dilation dependent of the first axis as a PyTorch tensor of the same shape than the original input.
+    """
+    # Check parameters
+    check_parameters_dependent(input_tensor, structuring_element, origin, border_value)
+
+    # Adapt origin
+    if not origin:
+        origin = (structuring_element.shape[1] // 2, structuring_element.shape[2] // 2)
+
+    # Fill border value if needed
+    border_value = fill_border(border_value, 'dilation')
+
+    # Convert tensor to float if needed
+    input_tensor = convert_float(input_tensor)
+
+    # Pad input
+    pad_list = [origin[1], structuring_element.shape[2] - origin[1] - 1,
+                origin[0], structuring_element.shape[1] - origin[0] - 1]
+    input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
+
+    # Compute dilation
+    if str(input_tensor.device) == 'cpu':
+        raise ValueError('Operation currently only implemented for GPU.')
+    else:
+        result = morphology_cuda.dilation_dependent(input_pad, structuring_element, BLOCK_SHAPE)
 
     return result
 
