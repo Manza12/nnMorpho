@@ -472,8 +472,8 @@ def erosion_dependent(input_tensor: torch.Tensor,
     input_tensor = convert_float(input_tensor)
 
     # Pad input
-    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1,
-                origin[1], structuring_element.shape[2] - origin[1] - 1]
+    pad_list = [origin[1], structuring_element.shape[2] - origin[1] - 1,
+                origin[0], structuring_element.shape[1] - origin[0] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     # Compute erosion
