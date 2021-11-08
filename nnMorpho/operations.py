@@ -37,7 +37,7 @@ def erosion(input_tensor: torch.Tensor,
 
     # Adapt origin
     if not origin:
-        origin = (structuring_element.shape[0] // 2, structuring_element.shape[0] // 2)
+        origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Fill border value if needed
     border_value = fill_border(border_value, 'erosion')
@@ -126,7 +126,7 @@ def dilation(input_tensor: torch.Tensor,
 
     # Adapt origin
     if not origin:
-        origin = (structuring_element.shape[0] // 2, structuring_element.shape[0] // 2)
+        origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Fill border value if needed
     border_value = fill_border(border_value, 'dilation')
