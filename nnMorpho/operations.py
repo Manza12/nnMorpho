@@ -563,7 +563,7 @@ def partial_erosion(input_tensor: torch.Tensor,
 
     # Adapt origin
     if not origin:
-        origin = (structuring_element.shape[0] // 2, structuring_element.shape[0] // 2)
+        origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Fill border value if needed
     border_value = fill_border(border_value, 'erosion')
@@ -572,7 +572,7 @@ def partial_erosion(input_tensor: torch.Tensor,
     input_tensor = convert_float(input_tensor)
 
     # Pad input
-    pad_list = [origin[0], structuring_element.shape[1] - origin[0] - 1]
+    pad_list = [origin[1], structuring_element.shape[1] - origin[1] - 1]
     input_pad = f.pad(input_tensor, pad_list, mode='constant', value=border_value)
 
     # Compute erosion
