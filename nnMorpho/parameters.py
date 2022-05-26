@@ -8,6 +8,8 @@ import numpy as np
 import torch.nn.functional as f
 
 import morphology_cuda
+import binary_morphology_cpp
+import cylindric_binary_morphology_cpp
 from torch import Tensor
 from torch.nn import Module
 from typing import Union, List, Any, Optional
