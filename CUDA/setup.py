@@ -2,7 +2,8 @@ from setuptools import setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
-    name='morphology',
+    name='Morphology CUDA',
+    version='0.0.1',
     ext_modules=[
         CUDAExtension('morphology_cuda', [
             'morphology.cpp',

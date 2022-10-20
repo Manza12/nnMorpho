@@ -2,9 +2,9 @@
 #include <iostream>
 #include <stdio.h>
 
-#define CHECK_FLOAT(x) TORCH_CHECK(x.scalar_type() == torch::kBool, #x " must be a bool tensor")
+#define CHECK_BOOL(x) TORCH_CHECK(x.scalar_type() == torch::kBool, #x " must be a bool tensor")
 #define CHECK_CPU(x) TORCH_CHECK(!x.is_cuda(), #x " must be a CPU tensor")
-#define CHECK_INPUT(x) CHECK_CPU(x); CHECK_FLOAT(x)
+#define CHECK_INPUT(x) CHECK_CPU(x); CHECK_BOOL(x)
 
 
 // C++ interface

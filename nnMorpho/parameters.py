@@ -8,14 +8,17 @@ import numpy as np
 import torch.nn.functional as f
 
 import morphology_cuda
+import greyscale_morphology_cpp
 import binary_morphology_cpp
-import cylindric_binary_morphology_cpp
+import cylindrical_binary_morphology_cpp
 from torch import Tensor
 from torch.nn import Module
 from typing import Union, List, Any, Optional
 
-# This lines are for avoid problems in PyCharm
-packages = [logging, sys, warnings, torch, time, np, f, morphology_cuda]
+# These lines are for avoid problems in PyCharm
+packages = [logging, sys, warnings, torch, time, np, f]
+packages_morphology = [morphology_cuda, greyscale_morphology_cpp, binary_morphology_cpp,
+                       cylindrical_binary_morphology_cpp]
 classes = [Tensor, Module, Union, List, Any, Optional]
 
 # Types

@@ -49,19 +49,7 @@ def erosion(input_tensor: torch.Tensor,
     if str(input_tensor.device) == 'cpu':
         # Pad input
         input_pad = pad_tensor(input_tensor, origin, structuring_element, border_value)
-
-        # Unfold the input
-        input_unfolded = input_pad
-        dim_shift = input_tensor.ndim - structuring_element.ndim
-        for dim in range(structuring_element.ndim):
-            input_unfolded = input_unfolded.unfold(dim_shift + dim, structuring_element.shape[dim], 1)
-
-        # Differences
-        result = input_unfolded - structuring_element
-
-        # Take the minimum
-        for dim in range(structuring_element.ndim):
-            result, _ = torch.min(result, dim=-1)
+        result = greyscale_morphology_cpp.greyscale_erosion(input_pad, structuring_element)
     else:
         if structuring_element.ndim == 2:
             # Pad input
@@ -138,19 +126,7 @@ def dilation(input_tensor: torch.Tensor,
     if str(input_tensor.device) == 'cpu':
         # Pad input
         input_pad = pad_tensor(input_tensor, origin, structuring_element, border_value)
-
-        # Unfold the input
-        input_unfolded = input_pad
-        dim_shift = input_tensor.ndim - structuring_element.ndim
-        for dim in range(structuring_element.ndim):
-            input_unfolded = input_unfolded.unfold(dim + dim_shift, structuring_element.shape[dim], 1)
-
-        # Sums
-        result = input_unfolded + torch.flip(structuring_element, list(range(structuring_element.ndim)))
-
-        # Take the maximum
-        for dim in range(structuring_element.ndim):
-            result, _ = torch.max(result, dim=-1)
+        result = greyscale_morphology_cpp.greyscale_dilation(input_pad, structuring_element)
     else:
         if structuring_element.ndim == 2:
             # Pad input
