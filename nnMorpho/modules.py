@@ -310,7 +310,7 @@ if __name__ == '__main__':
 
     # Image/s
     if not _batched_images:
-        _image = imread(join('..', 'images', 'lena.png'))
+        _image = imread(join('..', 'images', 'mona.png'))
         _image = to_greyscale(np.array(_image), warn=False)
         _image_tensor = torch.tensor(_image, device=DEVICE)
     else:

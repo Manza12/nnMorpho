@@ -52,7 +52,7 @@ if __name__ == '__main__':
     if not COLOR:
         if not BATCHED:
             path = join('..', 'images')
-            name = 'lena.png'
+            name = 'mona.png'
             file_path = join(path, name)
 
             image = imread(file_path)
