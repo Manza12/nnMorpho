@@ -35,8 +35,8 @@ def erosion(input_tensor: torch.Tensor,
     # Fill border value if needed
     border_value = fill_border(border_value, 'erosion')
 
-    result = cylindric_binary_morphology_cpp.cylindric_binary_erosion(input_tensor, structuring_element,
-                                                                      border_value, *origin)
+    result = cylindrical_binary_morphology_cpp.cylindric_binary_erosion(input_tensor, structuring_element,
+                                                                        border_value, *origin)
 
     return result
 
@@ -53,8 +53,8 @@ def dilation(input_tensor: torch.Tensor,
     # Fill border value if needed
     border_value = fill_border(border_value, 'dilation')
 
-    result = cylindric_binary_morphology_cpp.cylindric_binary_dilation(input_tensor, structuring_element,
-                                                                       border_value, *origin)
+    result = cylindrical_binary_morphology_cpp.cylindric_binary_dilation(input_tensor, structuring_element,
+                                                                         border_value, *origin)
 
     return result
 
