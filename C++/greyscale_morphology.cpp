@@ -2,7 +2,7 @@
 #include <iostream>
 #include <stdio.h>
 
-#define CHECK_FLOAT(x) TORCH_CHECK(x.scalar_type() == torch::kFloat32, #x " must be a bool tensor")
+#define CHECK_FLOAT(x) TORCH_CHECK(x.scalar_type() == torch::kFloat32, #x " must be a float32 tensor")
 #define CHECK_CPU(x) TORCH_CHECK(!x.is_cuda(), #x " must be a CPU tensor")
 #define CHECK_INPUT(x) CHECK_CPU(x); CHECK_FLOAT(x)
 
@@ -99,7 +99,7 @@ torch::Tensor greyscale_dilation(
 			for (int j = 0; j < strel_height; j++) {
 				for (int i = 0; i < strel_width; i++) {
                     input_value = input_accessor[x + i][y + j];
-                    structure_value = strel_accessor[i][j];
+                    structure_value = strel_accessor[strel_width - (i + 1)][strel_height - (j + 1)];
                     addition = input_value + structure_value;
                     if (value < addition)
                         value = addition;
