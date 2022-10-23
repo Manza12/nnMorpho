@@ -125,7 +125,9 @@ def dilation(input_tensor: torch.Tensor,
     # Compute the dilation
     if str(input_tensor.device) == 'cpu':
         # Pad input
-        input_pad = pad_tensor(input_tensor, origin, structuring_element, border_value)
+        m, n = structuring_element.shape
+        o_m, o_n = origin
+        input_pad = pad_tensor(input_tensor, (m - (o_m + 1), n - (o_n + 1)), structuring_element, border_value)
         result = greyscale_morphology_cpp.greyscale_dilation(input_pad, structuring_element)
     else:
         if structuring_element.ndim == 2:
