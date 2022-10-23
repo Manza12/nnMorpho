@@ -4,7 +4,7 @@ from torch.utils import cpp_extension
 setup(
     name='nnMorpho',
     packages=['nnMorpho'],
-    version='2.2.1',
+    version='2.2.2',
     license='MIT',
     description='A library for GPU-accelerated and Machine-Learning adapted'
                 ' Mathematical Morphology',
