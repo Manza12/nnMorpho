@@ -1,5 +1,5 @@
-from nnMorpho.parameters import *
 from nnMorpho.operations import erosion, dilation, opening, closing, partial_erosion
+from nnMorpho.parameters import *
 
 
 def test_common_operations():
@@ -39,7 +39,7 @@ def test_common_operations():
     from scipy.ndimage.morphology import grey_erosion, grey_dilation, grey_opening, grey_closing
     from matplotlib.pyplot import show
 
-    _path = join('..', 'images')
+    _path = join('../..', 'images')
     _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
     # Operations
@@ -172,9 +172,9 @@ def test_batched_operations():
     print("\nRecovering images...")
 
     if _color:
-        _path = join('..', 'images', 'color')
+        _path = join('../..', 'images', 'color')
     else:
-        _path = join('..', 'images', 'greyscale')
+        _path = join('../..', 'images', 'greyscale')
 
     _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
@@ -508,7 +508,7 @@ def test_partial_erosion():
     from os.path import join
     from nnMorpho.utils import to_greyscale, plot_image
 
-    _path = join('..', 'images', 'geometry')
+    _path = join('../..', 'images', 'geometry')
     _image = 'vertical_line.png'
 
     print("\n----\nTreating image", _image)
@@ -561,5 +561,5 @@ def test_partial_erosion():
 
 if __name__ == '__main__':
     test_batched_operations()
-    # test_common_operations()
-    # test_partial_erosion()
+    test_common_operations()
+    test_partial_erosion()

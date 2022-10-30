@@ -238,14 +238,14 @@ _color_images = True
 
 # Image/s
 if not _batched_images:
-    _image = imread(join('..', 'images', 'mona.png'))
+    _image = imread(join('../..', 'images', 'mona.png'))
     _image = to_greyscale(np.array(_image), warn=False)
     _image_tensor = torch.tensor(_image, device=DEVICE)
 else:
     if _color_images:
-        _path = join('..', 'images', 'color')
+        _path = join('../..', 'images', 'color')
     else:
-        _path = join('..', 'images', 'greyscale')
+        _path = join('../..', 'images', 'greyscale')
 
     _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 

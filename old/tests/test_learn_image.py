@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # Image/s
     if not COLOR:
         if not BATCHED:
-            path = join('..', 'images')
+            path = join('../..', 'images')
             name = 'mona.png'
             file_path = join(path, name)
 
@@ -59,7 +59,7 @@ if __name__ == '__main__':
             image_greyscale = to_greyscale(np.array(image), warn=False).astype(np.float32)
             image_tensor = torch.tensor(image_greyscale, device=DEVICE)
         else:
-            path = join('..', 'images', 'greyscale')
+            path = join('../..', 'images', 'greyscale')
             images = [im for im in listdir(path) if isfile(join(path, im))]
             images_list = list()
             for im in images:
@@ -74,14 +74,14 @@ if __name__ == '__main__':
 
     else:
         if not BATCHED:
-            path = join('..', 'images', 'color')
+            path = join('../..', 'images', 'color')
             name = '1.png'
             file_path = join(path, name)
 
             image = imread(file_path)
             image_tensor = torch.tensor(image, device=DEVICE, dtype=torch.float32).transpose(1, 2).transpose(0, 1)
         else:
-            path = join('..', 'images', 'color')
+            path = join('../..', 'images', 'color')
             images = [im for im in listdir(path) if isfile(join(path, im))]
             images_list = list()
             for im in images:

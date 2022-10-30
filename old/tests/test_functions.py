@@ -7,7 +7,7 @@ from nnMorpho.parameters import *
 from nnMorpho.functions import ErosionFunction
 
 
-_path = join('..', 'images', 'greyscale')
+_path = join('../..', 'images', 'greyscale')
 _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
 _images_list = list()
