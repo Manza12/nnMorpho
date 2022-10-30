@@ -11,6 +11,8 @@ torch::Tensor erosion_dispatcher(
 		) {
 
     switch (input.scalar_type()) {
+        case torch::ScalarType::Bool:
+            return erosion<bool>(input, str_el, origin_x, origin_y, border_type);
         case torch::ScalarType::Byte:
             return erosion<uint8_t>(input, str_el, origin_x, origin_y, border_type);
         case torch::ScalarType::Char:
@@ -28,8 +30,7 @@ torch::Tensor erosion_dispatcher(
         case torch::ScalarType::Double:
             return erosion<double>(input, str_el, origin_x, origin_y, border_type);
         default:
-            printf("Scalar type not supported.\n");
-            return input;
+            throw std::invalid_argument("[nnMorpho] Scalar type not supported.\n");
     }
 }
 
@@ -61,8 +62,7 @@ torch::Tensor dilation_dispatcher(
         case torch::ScalarType::Double:
             return dilation<double>(input, str_el, origin_x, origin_y, -std::numeric_limits<double>::infinity());
         default:
-            printf("Scalar type not supported.\n");
-            return input;
+            throw std::invalid_argument("[nnMorpho] Scalar type not supported.\n");
     }
 }
 

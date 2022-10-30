@@ -1,5 +1,6 @@
 #include "greyscale_operators.hpp"
 #include <limits>
+#include <stdexcept>
 
 // Erosion
 torch::Tensor erosion_dispatcher(
@@ -29,8 +30,7 @@ torch::Tensor erosion_dispatcher(
         case torch::ScalarType::Double:
             return erosion<double>(input, str_el, footprint, origin_x, origin_y, border_type, std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity());
         default:
-            printf("Scalar type not supported.\n");
-            return input;
+            throw std::invalid_argument("[nnMorpho] Scalar type not supported.\n");
     }
 }
 
@@ -61,8 +61,7 @@ torch::Tensor dilation_dispatcher(
         case torch::ScalarType::Double:
             return dilation<double>(input, str_el, footprint, origin_x, origin_y, -std::numeric_limits<double>::infinity());
         default:
-            printf("Scalar type not supported.\n");
-            return input;
+            throw std::invalid_argument("[nnMorpho] Scalar type not supported.\n");
     }
 }
 
