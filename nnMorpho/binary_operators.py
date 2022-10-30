@@ -1,12 +1,11 @@
 from torch import Tensor
 from typing import Optional, Union, List
-from greyscale_operators_cpp import erosion as erosion_cpp
-from greyscale_operators_cpp import dilation as dilation_cpp
+from binary_operators_cpp import erosion as erosion_cpp
+from binary_operators_cpp import dilation as dilation_cpp
 
 
 def erosion(input_tensor: Tensor,
             structuring_element: Tensor,
-            footprint: Tensor,
             origin: Optional[Union[tuple, List[int]]] = None,
             border: str = 'e'):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
@@ -41,14 +40,13 @@ def erosion(input_tensor: Tensor,
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Compute erosion
-    result = erosion_cpp(input_tensor, structuring_element, footprint, origin[0], origin[1], border[0])
+    result = erosion_cpp(input_tensor, structuring_element, origin[0], origin[1], border[0])
 
     return result
 
 
 def dilation(input_tensor: Tensor,
              structuring_element: Tensor,
-             footprint: Tensor,
              origin: Optional[Union[tuple, List[int]]] = None):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         dilation of an input tensor by a structuring element.
@@ -79,6 +77,6 @@ def dilation(input_tensor: Tensor,
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Compute erosion
-    result = dilation_cpp(input_tensor, structuring_element, footprint, origin[0], origin[1])
+    result = dilation_cpp(input_tensor, structuring_element, origin[0], origin[1])
 
     return result

@@ -184,7 +184,7 @@ if __name__ == '__main__':
     from nnMorpho.utils import to_greyscale
     from nnMorpho.operations import _erosion
 
-    _path = join('..', 'images', 'greyscale')
+    _path = join('../..', 'images', 'greyscale')
     _images = [im for im in listdir(_path) if isfile(join(_path, im))]
 
     _images_list = list()

@@ -45,21 +45,21 @@ torch::Tensor dilation_dispatcher(
 
     switch (input.scalar_type()) {
         case torch::ScalarType::Byte:
-            return dilation<uint8_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<uint8_t>::max(), std::numeric_limits<uint8_t>::min());
+            return dilation<uint8_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<uint8_t>::min());
         case torch::ScalarType::Char:
-            return dilation<int8_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int8_t>::max(), std::numeric_limits<int8_t>::min());
+            return dilation<int8_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int8_t>::min());
         case torch::ScalarType::Short:
-            return dilation<int16_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int16_t>::max(), std::numeric_limits<int16_t>::min());
+            return dilation<int16_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int16_t>::min());
         case torch::ScalarType::Int:
-            return dilation<int>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int>::max(), std::numeric_limits<int>::min());
+            return dilation<int>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int>::min());
         case torch::ScalarType::Long:
-            return dilation<int64_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int64_t>::max(), std::numeric_limits<int64_t>::min());
+            return dilation<int64_t>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<int64_t>::min());
         case torch::ScalarType::Half:
-            return dilation<at::Half>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<at::Half>::infinity(), -std::numeric_limits<at::Half>::infinity());
+            return dilation<at::Half>(input, str_el, footprint, origin_x, origin_y, -std::numeric_limits<at::Half>::infinity());
         case torch::ScalarType::Float:
-            return dilation<float>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity());
+            return dilation<float>(input, str_el, footprint, origin_x, origin_y, -std::numeric_limits<float>::infinity());
         case torch::ScalarType::Double:
-            return dilation<double>(input, str_el, footprint, origin_x, origin_y, std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity());
+            return dilation<double>(input, str_el, footprint, origin_x, origin_y, -std::numeric_limits<double>::infinity());
         default:
             printf("Scalar type not supported.\n");
             return input;
