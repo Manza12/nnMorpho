@@ -1,14 +1,19 @@
+import torch
 from torch import Tensor
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Tuple
 from greyscale_operators_cpp import erosion as erosion_cpp
 from greyscale_operators_cpp import dilation as dilation_cpp
 
 
+BLOCK_SHAPE = (32, 32)
+
+
 def erosion(input_tensor: Tensor,
             structuring_element: Tensor,
-            footprint: Tensor,
+            footprint: Optional[Tensor] = None,
             origin: Optional[Union[tuple, List[int]]] = None,
-            border: str = 'e'):
+            border: str = 'e',
+            block_shape: Tuple[int, int] = BLOCK_SHAPE):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         erosion of an input tensor by a structuring element.
 
@@ -40,16 +45,22 @@ def erosion(input_tensor: Tensor,
     if origin is None:
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
+    # Create footprint if it does not exist
+    if footprint is None:
+        footprint = torch.ones_like(structuring_element)
+
     # Compute erosion
-    result = erosion_cpp(input_tensor, structuring_element, footprint, origin[0], origin[1], border[0])
+    result = erosion_cpp(input_tensor, structuring_element, footprint.to(torch.bool), origin[0], origin[1], border[0],
+                         block_shape[0], block_shape[1])
 
     return result
 
 
 def dilation(input_tensor: Tensor,
              structuring_element: Tensor,
-             footprint: Tensor,
-             origin: Optional[Union[tuple, List[int]]] = None):
+             footprint: Optional[Tensor] = None,
+             origin: Optional[Union[tuple, List[int]]] = None,
+             block_shape: Tuple[int, int] = BLOCK_SHAPE):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         dilation of an input tensor by a structuring element.
 
@@ -78,7 +89,12 @@ def dilation(input_tensor: Tensor,
     if origin is None:
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
+    # Create footprint if it does not exist
+    if footprint is None:
+        footprint = torch.ones_like(structuring_element)
+
     # Compute erosion
-    result = dilation_cpp(input_tensor, structuring_element, footprint, origin[0], origin[1])
+    result = dilation_cpp(input_tensor, structuring_element, footprint.to(torch.bool), origin[0], origin[1],
+                          block_shape[0], block_shape[1])
 
     return result

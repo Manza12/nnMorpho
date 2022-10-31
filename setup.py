@@ -27,8 +27,12 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     ext_modules=[
-        cpp_extension.CppExtension('greyscale_operators_cpp', ['C++/greyscale_operators.cpp']),
-        cpp_extension.CppExtension('binary_operators_cpp', ['C++/binary_operators.cpp']),
+        cpp_extension.CUDAExtension('greyscale_operators_cpp', [
+            'C++/greyscale_operators.cpp',
+            'C++/CUDA/greyscale_operators.cu',
+        ])
+        # cpp_extension.CppExtension('greyscale_operators_cpp', ['C++/greyscale_operators.cpp']),
+        # cpp_extension.CppExtension('binary_operators_cpp', ['C++/binary_operators.cpp']),
         # cpp_extension.CppExtension('binary_morphology_cpp', ['C++/binary_morphology.cpp']),
         # cpp_extension.CppExtension('cylindrical_binary_morphology_cpp', ['C++/cylindrical_binary_morphology.cpp']),
         # cpp_extension.CUDAExtension('morphology_cuda', [
