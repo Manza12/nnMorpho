@@ -1,4 +1,4 @@
-#include "binary_operators.hpp"
+#include "binary_operators.h"
 
 // Erosion
 torch::Tensor erosion_dispatcher(
