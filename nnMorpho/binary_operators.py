@@ -1,13 +1,17 @@
 import torch
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Tuple
 from binary_operators_cpp import erosion as erosion_cpp
 from binary_operators_cpp import dilation as dilation_cpp
+
+
+BLOCK_SHAPE = (32, 32)
 
 
 def erosion(input_tensor: torch.Tensor,
             structuring_element: torch.Tensor,
             origin: Optional[Union[tuple, List[int]]] = None,
-            border: str = 'e'):
+            border: str = 'e',
+            block_shape: Tuple[int, int] = BLOCK_SHAPE):
     """ Erosion is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         erosion of an input tensor by a structuring element.
 
@@ -17,9 +21,6 @@ def erosion(input_tensor: torch.Tensor,
             The input tensor to erode. It should be a 2D PyTorch tensor.
         :param structuring_element: torch.Tensor
             The structuring element to erode. The structuring element should be a 2D PyTorch tensor.
-        :param footprint: torch.Tensor
-            The footprint to erode. The footprint should be a PyTorch tensor with the same dimension as the structuring
-            element.
         :param origin: None, tuple, List[int]
             The origin of the structuring element. Default to center of the structuring element.
             Negative indexes are allowed.
@@ -29,6 +30,7 @@ def erosion(input_tensor: torch.Tensor,
             stands for Euclidean)
             - [any other value]: only takes into account for taking the minimum the values within the input.
             Default value is 'e'.
+        :param block_shape: size of the blocks for GPU computation
 
         Outputs
         -------
@@ -40,14 +42,15 @@ def erosion(input_tensor: torch.Tensor,
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Compute erosion
-    result = erosion_cpp(input_tensor, structuring_element, origin[0], origin[1], border[0])
+    result = erosion_cpp(input_tensor, structuring_element, origin[0], origin[1], border[0], block_shape[0], block_shape[1])
 
     return result
 
 
 def dilation(input_tensor: torch.Tensor,
              structuring_element: torch.Tensor,
-             origin: Optional[Union[tuple, List[int]]] = None):
+             origin: Optional[Union[tuple, List[int]]] = None,
+             block_shape: Tuple[int, int] = BLOCK_SHAPE):
     """ Dilation is one of the basic operations of Mathematical Morphology. This function computes the grayscale
         dilation of an input tensor by a structuring element.
 
@@ -60,12 +63,10 @@ def dilation(input_tensor: torch.Tensor,
             The structuring element to dilate. The structuring element should be a PyTorch tensor of arbitrary
             dimension.
             Its shape should coincide with the shape of the last dimensions of the input_tensor.
-        :param footprint: torch.Tensor
-            The footprint to erode. The footprint should be a PyTorch tensor with the same dimension as the structuring
-            element.
         :param origin: None, tuple, List[int]
             The origin of the structuring element. Default to center of the structuring element.
             Negative indexes are allowed.
+        :param block_shape: size of the blocks for GPU computation
 
         Outputs
         -------
@@ -77,6 +78,6 @@ def dilation(input_tensor: torch.Tensor,
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Compute erosion
-    result = dilation_cpp(input_tensor, structuring_element, origin[0], origin[1])
+    result = dilation_cpp(input_tensor, structuring_element, origin[0], origin[1], block_shape[0], block_shape[1])
 
     return result
