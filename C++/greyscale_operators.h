@@ -1,7 +1,10 @@
 #include <torch/extension.h>
 #include <iostream>
 #include <stdio.h>
+#include <limits>
+#include <stdexcept>
 
+/* Headers */
 // Erosion
 template <typename scalar>
 torch::Tensor erosion(torch::Tensor input, torch::Tensor str_el, torch::Tensor footprint, int origin_x, int origin_y,

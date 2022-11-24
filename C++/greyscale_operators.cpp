@@ -1,18 +1,17 @@
 #include "greyscale_operators.h"
-#include <limits>
-#include <stdexcept>
 
+/* Template switch */
 // Erosion
 torch::Tensor erosion_dispatcher(
-		torch::Tensor input,
-		torch::Tensor str_el,
-		torch::Tensor footprint,
-		int origin_x,
-		int origin_y,
-		char border_type,
+        torch::Tensor input,
+        torch::Tensor str_el,
+        torch::Tensor footprint,
+        int origin_x,
+        int origin_y,
+        char border_type,
         const int block_size_x,
         const int block_size_y
-		) {
+) {
 
     switch (input.scalar_type()) {
         case torch::ScalarType::Byte:
@@ -93,7 +92,8 @@ torch::Tensor dilation_dispatcher(
     }
 }
 
+/* Python binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("erosion", &erosion_dispatcher, "Erosion");
-    m.def("dilation", &dilation_dispatcher, "Dilation");
+m.def("erosion", &erosion_dispatcher, "Erosion");
+m.def("dilation", &dilation_dispatcher, "Dilation");
 }

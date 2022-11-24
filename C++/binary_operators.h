@@ -1,6 +1,7 @@
 #include <torch/extension.h>
 #include <iostream>
 #include <stdio.h>
+#include <limits>
 
 // Erosion
 template <typename scalar>
