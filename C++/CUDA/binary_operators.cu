@@ -8,10 +8,10 @@ template <typename scalar>
 __global__ void erosion_cuda_kernel(
         const torch::PackedTensorAccessor32<scalar, 2, torch::RestrictPtrTraits> input_accessor,
         const torch::PackedTensorAccessor32<scalar, 2, torch::RestrictPtrTraits> str_el_accessor,
-        torch::PackedTensorAccessor32<scalar, 2, torch::RestrictPtrTraits> output_accessor,
+        torch::PackedTensorAccessor32<bool, 2, torch::RestrictPtrTraits> output_accessor,
         const int origin_x,
         const int origin_y,
-        char border_type) {
+        const char border_type) {
 
     // Sizes
     const auto m = input_accessor.size(1);
@@ -53,12 +53,12 @@ __global__ void erosion_cuda_kernel(
 // Dilation
 template <typename scalar>
 __global__ void dilation_cuda_kernel(
-        const torch::PackedTensorAccessor32<scalar, 2, torch::RestrictPtrTraits> input_accessor,
+        const torch::PackedTensorAccessor32<bool, 2, torch::RestrictPtrTraits> input_accessor,
         const torch::PackedTensorAccessor32<scalar, 2, torch::RestrictPtrTraits> str_el_accessor,
         torch::PackedTensorAccessor32<scalar, 2, torch::RestrictPtrTraits> output_accessor,
         const int origin_x,
         const int origin_y,
-        scalar bottom) {
+        const scalar bottom) {
 
     // Sizes
     const auto m = input_accessor.size(1);
@@ -130,8 +130,11 @@ torch::Tensor erosion(torch::Tensor input,
         const dim3 grid_size(grid_x, grid_y, 1);
 
         // Launch of the kernel
-        erosion_cuda_kernel<<<grid_size, block_size>>>(input_accessor, str_el_accessor, output_accessor,
-                                                       origin_x, origin_y, border_type);
+        erosion_cuda_kernel<<<grid_size, block_size>>>(
+                input_accessor,
+                str_el_accessor,
+                output_accessor,
+                origin_x, origin_y, border_type);
     } else {
         /* CPU */
         // Create accessors
@@ -197,9 +200,9 @@ torch::Tensor dilation(torch::Tensor input,
     if (input.is_cuda()) {
         /* GPU */
         // Create accessors
-        auto input_accessor = input.accessor<bool, 2>();
-        auto str_el_accessor = str_el.accessor<scalar, 2>();
-        auto output_accessor = output_tensor.accessor<scalar, 2>();
+        auto input_accessor = input.packed_accessor32<bool, 2, torch::RestrictPtrTraits>();
+        auto str_el_accessor = str_el.packed_accessor32<scalar, 2, torch::RestrictPtrTraits>();
+        auto output_accessor = output_tensor.packed_accessor32<scalar, 2, torch::RestrictPtrTraits>();
 
         // Block & Grid parameters
         const int grid_x = ((m - 1) / block_size_x) + 1;
@@ -209,7 +212,11 @@ torch::Tensor dilation(torch::Tensor input,
         const dim3 grid_size(grid_x, grid_y, 1);
 
         // Launch of the kernel
-        dilation_cuda_kernel<<<grid_size, block_size>>>(input_accessor, str_el_accessor, output_accessor, origin_x, origin_y, bottom);
+        dilation_cuda_kernel<<<grid_size, block_size>>>(
+                input_accessor,
+                str_el_accessor,
+                output_accessor,
+                origin_x, origin_y, bottom);
     } else {
         /* CPU */
         // Create accessors

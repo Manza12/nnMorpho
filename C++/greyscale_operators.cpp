@@ -94,6 +94,6 @@ torch::Tensor dilation_dispatcher(
 
 /* Python binding */
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-m.def("erosion", &erosion_dispatcher, "Erosion");
-m.def("dilation", &dilation_dispatcher, "Dilation");
+    m.def("erosion", &erosion_dispatcher, "Erosion");
+    m.def("dilation", &dilation_dispatcher, "Dilation");
 }
