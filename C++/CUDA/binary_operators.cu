@@ -98,11 +98,11 @@ __global__ void dilation_cuda_kernel(
 template <typename scalar>
 torch::Tensor erosion(torch::Tensor input,
                       torch::Tensor str_el,
-                      int origin_x,
                       int origin_y,
+                      int origin_x,
                       char border_type,
-                      const int block_size_x,
-                      const int block_size_y) {
+                      const int block_size_y,
+                      const int block_size_x) {
 
     // Compute output size
     const auto m = input.size(1);
@@ -180,11 +180,11 @@ torch::Tensor erosion(torch::Tensor input,
 template <typename scalar>
 torch::Tensor dilation(torch::Tensor input,
                        torch::Tensor str_el,
-                       int origin_x,
                        int origin_y,
+                       int origin_x,
                        scalar bottom,
-                       int block_size_x,
-                       int block_size_y) {
+                       int block_size_y,
+                       int block_size_x) {
 
     // Compute output size
     const auto m = input.size(1);
