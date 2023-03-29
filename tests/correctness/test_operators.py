@@ -93,10 +93,10 @@ def test_greyscale_erosion():
             input_tensor = torch.Tensor(input_greyscale_list).to(torch_type).to(device)
             structuring_element = torch.Tensor(str_el_greyscale_list).to(torch_type).to(device)
             footprint = torch.Tensor(footprint_list).to(torch.bool).to(device)
-            output_tensor = greyscale_erosion(input_tensor, structuring_element, footprint, origin=(1, 1), border='geodesic')
+            output_tensor = greyscale_erosion(input_tensor, structuring_element, footprint, origin=(1, 1), border='g')
 
             ground_truth = torch.Tensor(output_greyscale_erosion_list).to(torch_type).to(device)
-            assert torch.all(output_tensor == ground_truth)
+            assert torch.all(torch.eq(output_tensor, ground_truth))
             print('Output tensor type: %s' % output_tensor.dtype)
             print(output_tensor)
             print()
@@ -108,13 +108,13 @@ def test_greyscale_dilation():
         print('Device: %s' % device)
         for torch_type in torch_types:
             print('Input tensor type: %s' % torch_type)
-            input_tensor = torch.Tensor(input_greyscale_list).to(torch_type)
-            structuring_element = torch.Tensor(str_el_greyscale_list).to(torch_type)
-            footprint = torch.Tensor(footprint_list).to(torch.bool)
+            input_tensor = torch.Tensor(input_greyscale_list).to(torch_type).to(device)
+            structuring_element = torch.Tensor(str_el_greyscale_list).to(torch_type).to(device)
+            footprint = torch.Tensor(footprint_list).to(torch.bool).to(device)
             output_tensor = greyscale_dilation(input_tensor, structuring_element, footprint, origin=(1, 1))
 
             ground_truth = torch.Tensor(output_greyscale_dilation_list).to(torch_type).to(device)
-            assert torch.all(output_tensor == ground_truth)
+            assert torch.all(torch.eq(output_tensor, ground_truth))
             print('Output tensor type: %s' % output_tensor.dtype)
             print(output_tensor)
             print()
@@ -122,53 +122,70 @@ def test_greyscale_dilation():
 
 def test_binary_erosion():
     print('Testing erosion...')
-    # Test bool
-    print('Input tensor type: %s' % torch.bool)
-    input_tensor = torch.Tensor(input_binary_erosion_list).to(torch.bool)
-    structuring_element = torch.Tensor(str_el_binary_erosion).to(torch.bool)
-    output_tensor = binary_erosion(input_tensor, structuring_element, origin=(1, 1), border='geodesic')
-    assert torch.all(output_tensor == torch.Tensor(output_binary_erosion_bool_list))
-    print('Output tensor type: %s' % output_tensor.dtype)
-    print(output_tensor)
-    print()
-    # Test other types
-    for torch_type in torch_types:
-        print('Input tensor type: %s' % torch_type)
-        input_tensor = torch.Tensor(input_greyscale_list).to(torch_type)
-        structuring_element = torch.Tensor(str_el_binary_list).to(torch_type)
+    for device in devices:
+        print('Device: %s' % device)
+
+        # Test bool
+        print('Input tensor type: %s' % torch.bool)
+        input_tensor = torch.Tensor(input_binary_erosion_list).to(torch.bool).to(device)
+        structuring_element = torch.Tensor(str_el_binary_erosion).to(torch.bool).to(device)
         output_tensor = binary_erosion(input_tensor, structuring_element, origin=(1, 1), border='geodesic')
-        assert torch.all(output_tensor == torch.Tensor(output_binary_erosion_list))
+
+        ground_truth = torch.Tensor(output_binary_erosion_bool_list).to(torch.bool).to(device)
+        assert torch.all(torch.eq(output_tensor, ground_truth))
         print('Output tensor type: %s' % output_tensor.dtype)
         print(output_tensor)
         print()
+        # Test other types
+        for torch_type in torch_types:
+            print('Input tensor type: %s' % torch_type)
+            input_tensor = torch.Tensor(input_greyscale_list).to(torch_type).to(device)
+            structuring_element = torch.Tensor(str_el_binary_list).to(torch_type).to(device)
+            output_tensor = binary_erosion(input_tensor, structuring_element, origin=(1, 1), border='geodesic')
+
+            ground_truth = torch.Tensor(output_binary_erosion_list).to(device)
+            assert torch.all(torch.eq(output_tensor, ground_truth))
+
+            print('Output tensor type: %s' % output_tensor.dtype)
+            print(output_tensor)
+            print()
 
 
 def test_binary_dilation():
     print('Testing dilation...')
-    # Test bool
-    print('Input tensor type: %s' % torch.bool)
-    input_tensor = torch.Tensor(input_binary_dilation_list).to(torch.bool)
-    structuring_element = torch.Tensor(str_el_binary_erosion).to(torch.bool)
-    output_tensor = binary_dilation(input_tensor, structuring_element, origin=(1, 1))
-    assert torch.all(output_tensor == torch.Tensor(output_binary_dilation_bool_list))
-    print('Output tensor type: %s' % output_tensor.dtype)
-    print(output_tensor)
-    print()
-    # Test other types
-    for torch_type in torch_types:
-        print('Input tensor type: %s' % torch_type)
-        input_tensor = torch.Tensor(input_binary_dilation_list).to(torch.bool)
-        structuring_element = torch.Tensor(str_el_greyscale_list).to(torch_type)
+    for device in devices:
+        print('Device: %s' % device)
+
+        # Test bool
+        print('Input tensor type: %s' % torch.bool)
+        input_tensor = torch.Tensor(input_binary_dilation_list).to(torch.bool).to(device)
+        structuring_element = torch.Tensor(str_el_binary_erosion).to(torch.bool).to(device)
         output_tensor = binary_dilation(input_tensor, structuring_element, origin=(1, 1))
-        output_ground_truth_tensor = torch.Tensor(output_binary_dilation_list)
-        try:
-            output_ground_truth_tensor[output_ground_truth_tensor == 0] = torch.iinfo(torch_type).min
-        except TypeError:
-            output_ground_truth_tensor[output_ground_truth_tensor == 0] = -torch.Tensor([float('inf')])
-        assert torch.all(output_tensor == output_ground_truth_tensor)
+
+        ground_truth = torch.Tensor(output_binary_dilation_bool_list).to(device)
+        assert torch.all(torch.eq(output_tensor, ground_truth))
+
         print('Output tensor type: %s' % output_tensor.dtype)
         print(output_tensor)
         print()
+        # Test other types
+        for torch_type in torch_types:
+            print('Input tensor type: %s' % torch_type)
+            input_tensor = torch.Tensor(input_binary_dilation_list).to(torch.bool).to(device)
+            structuring_element = torch.Tensor(str_el_greyscale_list).to(torch_type).to(device)
+            output_tensor = binary_dilation(input_tensor, structuring_element, origin=(1, 1))
+
+            ground_truth = torch.Tensor(output_binary_dilation_list).to(device)
+            try:
+                ground_truth[ground_truth == 0] = torch.iinfo(torch_type).min
+            except TypeError:
+                ground_truth[ground_truth == 0] = -torch.Tensor([float('inf')]).to(device)
+
+            assert torch.all(torch.eq(output_tensor, ground_truth))
+
+            print('Output tensor type: %s' % output_tensor.dtype)
+            print(output_tensor)
+            print()
 
 
 if __name__ == '__main__':
