@@ -3,7 +3,7 @@ from torch.utils import cpp_extension
 setup(
     name='nnMorpho',
     packages=['nnMorpho'],
-    version='3.0.3',
+    version='3.1.0',
     license='MIT',
     description='A library for GPU-accelerated and Machine-Learning adapted'
                 ' Mathematical Morphology',
@@ -27,12 +27,18 @@ setup(
         'Programming Language :: Python :: 3.6',
     ],
     ext_modules=[
-        cpp_extension.CUDAExtension('greyscale_operators_cpp', [
-            'C++/greyscale_operators.cu',
-        ]),
-        cpp_extension.CUDAExtension('binary_operators_cpp', [
-            'C++/binary_operators.cu',
-        ])
+        cpp_extension.CUDAExtension(
+            name='greyscale_operators_cpp',
+            sources=[
+                'C++/greyscale_operators.cu',
+            ]
+        ),
+        cpp_extension.CUDAExtension(
+            name='binary_operators_cpp',
+            sources=[
+                'C++/binary_operators.cu',
+            ]
+        )
       ],
     cmdclass={'build_ext': cpp_extension.BuildExtension}
 )
