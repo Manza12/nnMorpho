@@ -40,7 +40,7 @@ def erosion(input_tensor: torch.Tensor,
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Compute erosion
-    result = erosion_cpp(input_tensor, structuring_element, origin[0], origin[1], border[0], *block_shape)
+    result = erosion_cpp(input_tensor, structuring_element, origin[1], origin[0], border[0], block_shape[1], block_shape[0])
 
     return result
 
@@ -76,7 +76,7 @@ def dilation(input_tensor: torch.Tensor,
         origin = (structuring_element.shape[0] // 2, structuring_element.shape[1] // 2)
 
     # Compute erosion
-    result = dilation_cpp(input_tensor, structuring_element, origin[0], origin[1], *block_shape)
+    result = dilation_cpp(input_tensor, structuring_element, origin[1], origin[0], block_shape[1], block_shape[0])
 
     return result
 
