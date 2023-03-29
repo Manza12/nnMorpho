@@ -28,10 +28,10 @@ setup(
     ],
     ext_modules=[
         cpp_extension.CUDAExtension('greyscale_operators_cpp', [
-            'C++/CUDA/greyscale_operators.cu',
+            'C++/greyscale_operators.cu',
         ]),
         cpp_extension.CUDAExtension('binary_operators_cpp', [
-            'C++/CUDA/binary_operators.cu',
+            'C++/binary_operators.cu',
         ])
       ],
     cmdclass={'build_ext': cpp_extension.BuildExtension}
