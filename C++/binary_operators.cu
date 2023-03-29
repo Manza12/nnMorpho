@@ -1,6 +1,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "binary_operators.cpp"
+#include "binary_operators.h"
 
 /* Kernels */
 // Erosion

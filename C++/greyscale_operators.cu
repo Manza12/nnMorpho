@@ -1,6 +1,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "greyscale_operators.cpp"
+#include "greyscale_operators.h"
 
 /* Kernels */
 // Erosion
