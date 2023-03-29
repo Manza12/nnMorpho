@@ -36,4 +36,3 @@ setup(
       ],
     cmdclass={'build_ext': cpp_extension.BuildExtension}
 )
-
