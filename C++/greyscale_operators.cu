@@ -48,7 +48,7 @@ __global__ void erosion_cuda_kernel(
                 }
             }
         }
-        end: output_accessor[x][y] = value;
+        end: output_accessor[y][x] = value;
     }
 }
 
@@ -92,7 +92,7 @@ __global__ void dilation_cuda_kernel(
                 }
             }
         }
-        output_accessor[x][y] = value;
+        output_accessor[y][x] = value;
     }
 }
 

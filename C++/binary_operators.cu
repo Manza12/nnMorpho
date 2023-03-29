@@ -29,6 +29,7 @@ __global__ void erosion_cuda_kernel(
 
     // Compute the value of output[y][x]
     if (x < m && y < n) {
+        value = true;
         for (int j = 0; j < q; j++) {
             for (int i = 0; i < p; i++) {
                 idx_x = x + (i - origin_x);
@@ -46,7 +47,7 @@ __global__ void erosion_cuda_kernel(
                 }
             }
         }
-        end: output_accessor[x][y] = value;
+        end: output_accessor[y][x] = value;
     }
 }
 
@@ -89,7 +90,7 @@ __global__ void dilation_cuda_kernel(
                 }
             }
         }
-        output_accessor[x][y] = value;
+        output_accessor[y][x] = value;
     }
 }
 
