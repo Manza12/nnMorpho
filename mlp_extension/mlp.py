@@ -1,15 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.utils.cpp_extension import load
-
-# -----------------------------------------------------------------------------
-# Build/Load the extension (compiles the *.cpp + *.cu files)
-# -----------------------------------------------------------------------------
-mlp_cuda = load(
-    name="mlp_cuda",
-    sources=["mlp_cuda.cpp", "mlp_cuda_kernel.cu"],
-    verbose=True
-)
+import mlp_cuda
 
 
 class MLPFunction(torch.autograd.Function):
