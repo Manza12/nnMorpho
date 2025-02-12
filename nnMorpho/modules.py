@@ -4,129 +4,80 @@ from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
 from typing import Optional, Union, Tuple
 
-import morphological_dilation2d
+# import morphological_dilation2d
+
+_type_to_pair = Union[int, Tuple[int, int]]
 
 
 class Dilation2dFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, input: Tensor, weight: Tensor, bias: Optional[Tensor],
-                padH: int, padW: int, useNegInfPad: bool):
+    def forward(ctx, input: Tensor, weight: Tensor, origin: Tuple[int, int], padding_value: float):
         """
         input: [N, Cin, H, W]
         weight: [Cout, Cin, Kh, Kw]
-        bias: [Cout] or None
-        Returns: output: [N, Cout, Hout, Wout]
+        Returns: output: [N, Cout, H, W]
         """
         # Call C++/CUDA forward
         out, argmax = morphological_dilation2d.morphological_dilation2d_forward(
-            input, weight, padH, padW, useNegInfPad
+            input, weight, origin[0], origin[1], padding_value
         )
-        # If bias is present, broadcast-add: bias[c] across spatial
-        if bias is not None:
-            out += bias.view(1, -1, 1, 1)
 
         # Save for backward
-        ctx.save_for_backward(input, weight, bias, argmax)
-
-        ctx.padH = padH
-        ctx.padW = padW
-        ctx.useNegInfPad = useNegInfPad
+        ctx.save_for_backward(input, weight, argmax)
+        ctx.origin = origin
+        ctx.padding_value = padding_value
         return out
 
     @staticmethod
     def backward(ctx, grad_out: Tensor):
         """
         grad_out: [N, Cout, Hout, Wout]
-        Returns: (grad_input, grad_weight, grad_bias)
+        Returns: (grad_input, grad_weight)
         """
-        input, weight, bias, argmax = ctx.saved_tensors
-        padH = ctx.padH
-        padW = ctx.padW
-        useNegInfPad = ctx.useNegInfPad
+        input, weight, argmax = ctx.saved_tensors
+        origin = ctx.origin
+        padding_value = ctx.padding_value
 
-        # 1) morpho backward to get grad_in, grad_w
+        # Call C++/CUDA backward
         grad_in, grad_w = morphological_dilation2d.morphological_dilation2d_backward(
-            grad_out, argmax, input, weight, padH, padW, useNegInfPad
+            grad_out, argmax, input, weight, origin[0], origin[1], padding_value
         )
 
-        # 2) grad_bias
-        grad_bias = None
-        if bias is not None:
-            grad_bias = grad_out.sum(dim=[0, 2, 3])
-
-        return grad_in, grad_w, grad_bias, None, None, None
+        return grad_in, grad_w, None
 
 
-class Dilation2d(_ConvNd):
-    r"""
-    A 2D morphological dilation layer, analogous to nn.Conv2d but using dilation instead of convolution.
-
-    Naive version:
-     - Ignores stride/padding/dilation/groups from the parent _ConvNd for now.
-     - Calls morphological_dilation2d (C++/CUDA) and adds bias if present.
-    """
-
+class Dilation2d(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
-            kernel_size,
-            stride=1,
-            padding=0,
-            dilation=1,
-            groups=1,
-            bias=True,
-            padding_mode="neg_inf",  # or "neg_inf"
-            device=None,
-            dtype=None,
+            kernel_size: _type_to_pair,
+            origin: Optional[_type_to_pair] = None,
+            padding_value: float = -float('inf'),
     ):
-        kernel_size_ = _pair(kernel_size)
-        stride_ = _pair(stride)
-        if isinstance(padding, str):
-            padding_ = padding
+        super().__init__()
+
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = _pair(kernel_size)
+
+        # Default origin is kernel_size // 2 if not provided
+        if origin is None:
+            self.origin = (self.kernel_size[0] // 2, self.kernel_size[1] // 2)
         else:
-            padding_ = _pair(padding)
-        dilation_ = _pair(dilation)
+            self.origin = origin
 
-        super().__init__(
-            in_channels, out_channels,
-            kernel_size_, stride_, padding_, dilation_,
-            False, _pair(0), groups, bias, padding_mode,
-            device=device, dtype=dtype,
-        )
+        self.padding_value = padding_value
 
-        # Decide padH, padW from self.padding (which we stored in _ConvNd).
-        # If we truly just want padH = padding_[0], padW = padding_[1], do:
-        if isinstance(padding, tuple):
-            self.padH, self.padW = padding
-        else:
-            # if it's int or str, handle accordingly
-            if isinstance(padding, int):
-                self.padH = padding
-                self.padW = padding
-            else:
-                # e.g. "same" => you'd parse differently
-                self.padH = 0
-                self.padW = 0
-
-        # Decide whether to use neg-inf or 0 for out-of-bounds
-        self.useNegInfPad = (padding_mode == "neg_inf")
-
-    def _dilation_forward(
-        self, input: Tensor, weight: Tensor, bias: Optional[Tensor]
-    ) -> Tensor:
-        """
-        Actually calls our custom autograd Function,
-        with padH, padW, useNegInfPad as well.
-        """
-        return Dilation2dFunction.apply(
-            input,
-            weight,
-            bias,
-            self.padH,
-            self.padW,
-            self.useNegInfPad
+        # Initialize weights
+        self.weight = nn.Parameter(
+            torch.randn(out_channels, in_channels, *self.kernel_size)
         )
 
     def forward(self, input: Tensor) -> Tensor:
-        return self._dilation_forward(input, self.weight, self.bias)
+        return Dilation2dFunction.apply(
+            input,
+            self.weight,
+            self.origin,
+            self.padding_value
+        )

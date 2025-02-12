@@ -8,9 +8,9 @@
 std::vector<torch::Tensor> morphological_dilation2d_forward_cuda(
     torch::Tensor input,
     torch::Tensor weight,
-    int padH,
-    int padW,
-    bool useNegInfPad
+    int originH,
+    int originW,
+    float padding_value
 );
 
 std::vector<torch::Tensor> morphological_dilation2d_backward_cuda(
@@ -18,188 +18,173 @@ std::vector<torch::Tensor> morphological_dilation2d_backward_cuda(
     torch::Tensor argmax,
     torch::Tensor input,
     torch::Tensor weight,
-    int padH,
-    int padW,
-    bool useNegInfPad
+    int originH,
+    int originW,
+    float padding_value
 );
 
 // -----------------------------------------------------------------------------
 // CPU fallback for 2D morphological dilation (forward + backward).
 // No stride/padding/dilation/groups in this minimal example.
 // -----------------------------------------------------------------------------
-
-// Forward pass:
-//   input:  [N, Cin, Hin, Win]
-//   weight: [Cout, Cin, Kh, Kw]
-// Output shape: [N, Cout, Hout, Wout]
-//   where Hout = Hin - Kh + 1, Wout = Win - Kw + 1  (no padding, stride=1)
-// Argmax: same shape as output (stores index in [Cin, Kh, Kw], flattened).
 std::vector<torch::Tensor> morphological_dilation2d_forward_cpu(
     torch::Tensor input,
-    torch::Tensor weight
+    torch::Tensor weight,
+    int originH,
+    int originW,
+    float padding_value
 ) {
-    // Check device
-    TORCH_CHECK(!input.is_cuda(), "input must be CPU tensor");
-    TORCH_CHECK(!weight.is_cuda(), "weight must be CPU tensor");
+    // Ensure input is on CPU
+    TORCH_CHECK(!input.is_cuda(), "Input must be a CPU tensor.");
+    TORCH_CHECK(!weight.is_cuda(), "Weight must be a CPU tensor.");
 
-    auto N     = input.size(0);
-    auto Cin   = input.size(1);
-    auto Hin   = input.size(2);
-    auto Win   = input.size(3);
+    auto N = input.size(0);
+    auto Cin = input.size(1);
+    auto Hin = input.size(2);
+    auto Win = input.size(3);
 
-    auto Cout  = weight.size(0);
-    auto WCin  = weight.size(1);
-    auto Kh    = weight.size(2);
-    auto Kw    = weight.size(3);
+    auto Cout = weight.size(0);
+    auto WCin = weight.size(1);
+    auto Kh = weight.size(2);
+    auto Kw = weight.size(3);
 
-    TORCH_CHECK(Cin == WCin, "input channel dim must match weight's in-channel dim");
+    TORCH_CHECK(Cin == WCin, "Input channel count must match weight's in-channel count.");
 
-    // Compute output spatial size (naive, no padding)
-    int Hout = Hin - Kh + 1;
-    int Wout = Win - Kw + 1;
-    TORCH_CHECK(Hout >= 1 && Wout >= 1,
-        "Kernel too large for input size (no padding).");
+    // Compute output dimensions
+    int Hout = Hin;
+    int Wout = Win;
 
-    // Allocate output + argmax
-    auto out = torch::empty({N, Cout, Hout, Wout}, input.options());
-    // We'll store a single int that encodes which (c_in, kh, kw) gave the max
-    auto argmax = torch::empty({N, Cout, Hout, Wout},
-                               torch::TensorOptions().dtype(torch::kInt32));
+    // Allocate output tensor
+    auto out = torch::full({N, Cout, Hout, Wout}, padding_value, input.options());
+    auto argmax = torch::empty({N, Cout, Hout, Wout}, torch::TensorOptions().dtype(torch::kInt32));
 
-    // Pointers for faster access
-    float* inp_ptr    = input.data_ptr<float>();
-    float* w_ptr      = weight.data_ptr<float>();
-    float* out_ptr    = out.data_ptr<float>();
-    int*   argmax_ptr = argmax.data_ptr<int>();
+    // Pointers for fast access
+    float* inp_ptr = input.data_ptr<float>();
+    float* w_ptr = weight.data_ptr<float>();
+    float* out_ptr = out.data_ptr<float>();
+    int* argmax_ptr = argmax.data_ptr<int>();
 
-    // Naive nested loops
+    // Perform dilation
     for (int n = 0; n < N; n++) {
-      for (int co = 0; co < Cout; co++) {
-        for (int ho = 0; ho < Hout; ho++) {
-          for (int wo = 0; wo < Wout; wo++) {
+        for (int co = 0; co < Cout; co++) {
+            for (int ho = 0; ho < Hout; ho++) {
+                for (int wo = 0; wo < Wout; wo++) {
 
-            float best_val = -std::numeric_limits<float>::infinity();
-            int best_idx = -1;
+                    float best_val = padding_value;
+                    int best_idx = -1;
 
-            // Search over Cin, Kh, Kw
-            for (int ci = 0; ci < Cin; ci++) {
-              for (int kh = 0; kh < Kh; kh++) {
-                for (int kw = 0; kw < Kw; kw++) {
-                  int hi = ho + kh; // no stride/padding
-                  int wi = wo + kw;
-                  float val = inp_ptr[ ((n * Cin + ci) * Hin + hi) * Win + wi ]
-                              + w_ptr[ ((co * Cin + ci) * Kh + kh) * Kw + kw ];
-                  if (val > best_val) {
-                    best_val = val;
-                    // Flatten (ci, kh, kw) into a single integer
-                    best_idx = ci * (Kh * Kw) + kh * Kw + kw;
-                  }
+                    for (int ci = 0; ci < Cin; ci++) {
+                        for (int kh = 0; kh < Kh; kh++) {
+                            for (int kw = 0; kw < Kw; kw++) {
+                                int hi = ho + kh - originH;
+                                int wi = wo + kw - originW;
+
+                                if (hi >= 0 && hi < Hin && wi >= 0 && wi < Win) {
+                                    float val = inp_ptr[((n * Cin + ci) * Hin + hi) * Win + wi]
+                                                + w_ptr[((co * Cin + ci) * Kh + kh) * Kw + kw];
+
+                                    if (val > best_val) {
+                                        best_val = val;
+                                        best_idx = ci * (Kh * Kw) + kh * Kw + kw;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    out_ptr[((n * Cout + co) * Hout + ho) * Wout + wo] = best_val;
+                    argmax_ptr[((n * Cout + co) * Hout + ho) * Wout + wo] = best_idx;
                 }
-              }
             }
-
-            // Store
-            out_ptr[ ((n * Cout + co) * Hout + ho) * Wout + wo ] = best_val;
-            argmax_ptr[ ((n * Cout + co) * Hout + ho) * Wout + wo ] = best_idx;
-          }
         }
-      }
     }
 
     return {out, argmax};
 }
 
-
-// Backward pass:
-//   grad_out:  [N, Cout, Hout, Wout]
-//   argmax:    [N, Cout, Hout, Wout] (encodes which (ci,kh,kw) gave the max)
-//   input:     [N, Cin, Hin, Win]  (only used for shape checking)
-//   weight:    [Cout, Cin, Kh, Kw] (only used for shape checking)
-// Returns:
-//   grad_in:   same shape as input
-//   grad_w:    same shape as weight
 std::vector<torch::Tensor> morphological_dilation2d_backward_cpu(
     torch::Tensor grad_out,
     torch::Tensor argmax,
     torch::Tensor input,
-    torch::Tensor weight
+    torch::Tensor weight,
+    int originH,
+    int originW,
+    float padding_value
 ) {
-    // Check CPU
-    TORCH_CHECK(!grad_out.is_cuda(), "grad_out must be CPU tensor");
-    TORCH_CHECK(!argmax.is_cuda(),   "argmax must be CPU tensor");
+    // Ensure CPU tensors
+    TORCH_CHECK(!grad_out.is_cuda(), "grad_out must be a CPU tensor.");
+    TORCH_CHECK(!argmax.is_cuda(), "argmax must be a CPU tensor.");
 
-    auto N     = input.size(0);
-    auto Cin   = input.size(1);
-    auto Hin   = input.size(2);
-    auto Win   = input.size(3);
+    auto N = input.size(0);
+    auto Cin = input.size(1);
+    auto Hin = input.size(2);
+    auto Win = input.size(3);
 
-    auto Cout  = weight.size(0);
-    auto WCin  = weight.size(1);
-    auto Kh    = weight.size(2);
-    auto Kw    = weight.size(3);
+    auto Cout = weight.size(0);
+    auto WCin = weight.size(1);
+    auto Kh = weight.size(2);
+    auto Kw = weight.size(3);
 
-    TORCH_CHECK(Cin == WCin, "input channel dim must match weight's in-channel dim");
+    TORCH_CHECK(Cin == WCin, "Input channel count must match weight's in-channel count.");
 
-    int Hout = Hin - Kh + 1;
-    int Wout = Win - Kw + 1;
+    // Compute output dimensions
+    int Hout = Hin;
+    int Wout = Win;
 
-    // Allocate grad_in, grad_w
-    auto grad_in  = torch::zeros_like(input);
-    auto grad_w   = torch::zeros_like(weight);
+    // Allocate gradient tensors
+    auto grad_in = torch::zeros_like(input);
+    auto grad_w = torch::zeros_like(weight);
 
     float* g_out_ptr = grad_out.data_ptr<float>();
-    int*   argm_ptr  = argmax.data_ptr<int>();
-    float* g_in_ptr  = grad_in.data_ptr<float>();
-    float* g_w_ptr   = grad_w.data_ptr<float>();
+    int* argmax_ptr = argmax.data_ptr<int>();
+    float* g_in_ptr = grad_in.data_ptr<float>();
+    float* g_w_ptr = grad_w.data_ptr<float>();
 
-    // For each output pixel, add grad_out to the winning (ci, kh, kw).
+    // Backward pass computation
     for (int n = 0; n < N; n++) {
-      for (int co = 0; co < Cout; co++) {
-        for (int ho = 0; ho < Hout; ho++) {
-          for (int wo = 0; wo < Wout; wo++) {
-            float go = g_out_ptr[ ((n*Cout + co)*Hout + ho)*Wout + wo ];
-            int idx  = argm_ptr[ ((n*Cout + co)*Hout + ho)*Wout + wo ];
+        for (int co = 0; co < Cout; co++) {
+            for (int ho = 0; ho < Hout; ho++) {
+                for (int wo = 0; wo < Wout; wo++) {
+                    float go = g_out_ptr[((n * Cout + co) * Hout + ho) * Wout + wo];
+                    int idx = argmax_ptr[((n * Cout + co) * Hout + ho) * Wout + wo];
 
-            // decode ci, kh, kw
-            int ci = idx / (Kh * Kw);
-            int r  = idx % (Kh * Kw);
-            int kh = r / Kw;
-            int kw_ = r % Kw;
+                    if (idx != -1) {
+                        int ci = idx / (Kh * Kw);
+                        int rem = idx % (Kh * Kw);
+                        int kh = rem / Kw;
+                        int kw = rem % Kw;
 
-            int hi = ho + kh;
-            int wi = wo + kw_;
+                        int hi = ho + kh - originH;
+                        int wi = wo + kw - originW;
 
-            // grad_in
-            g_in_ptr[ ((n*Cin + ci)*Hin + hi)*Win + wi ] += go;
-
-            // grad_w
-            g_w_ptr[ ((co*Cin + ci)*Kh + kh)*Kw + kw_ ] += go;
-          }
+                        if (hi >= 0 && hi < Hin && wi >= 0 && wi < Win) {
+                            g_in_ptr[((n * Cin + ci) * Hin + hi) * Win + wi] += go;
+                            g_w_ptr[((co * Cin + ci) * Kh + kh) * Kw + kw] += go;
+                        }
+                    }
+                }
+            }
         }
-      }
     }
 
     return {grad_in, grad_w};
 }
 
-
 // -----------------------------------------------------------------------------
-// Public entry points that dispatch CPU vs. CUDA.
+// CUDA Dispatch
 // -----------------------------------------------------------------------------
-
 
 std::vector<torch::Tensor> morphological_dilation2d_forward(
     torch::Tensor input,
     torch::Tensor weight,
-    int padH,
-    int padW,
-    bool useNegInfPad
+    int originH,
+    int originW,
+    float padding_value
 ) {
     if (input.is_cuda()) {
-        return morphological_dilation2d_forward_cuda(input, weight,
-                                                     padH, padW, useNegInfPad);
+        return morphological_dilation2d_forward_cuda(input, weight, originH, originW, padding_value);
     } else {
-        throw std::runtime_error("Only CUDA is supported in this snippet (forward).");
+        return morphological_dilation2d_forward_cpu(input, weight, originH, originW, padding_value);
     }
 }
 
@@ -208,15 +193,14 @@ std::vector<torch::Tensor> morphological_dilation2d_backward(
     torch::Tensor argmax,
     torch::Tensor input,
     torch::Tensor weight,
-    int padH,
-    int padW,
-    bool useNegInfPad
+    int originH,
+    int originW,
+    float padding_value
 ) {
     if (grad_out.is_cuda()) {
-        return morphological_dilation2d_backward_cuda(grad_out, argmax, input,
-                                                      weight, padH, padW, useNegInfPad);
+        return morphological_dilation2d_backward_cuda(grad_out, argmax, input, weight, originH, originW, padding_value);
     } else {
-        throw std::runtime_error("Only CUDA is supported in this snippet (backward).");
+        return morphological_dilation2d_backward_cpu(grad_out, argmax, input, weight, originH, originW, padding_value);
     }
 }
 
