@@ -42,7 +42,7 @@ class Dilation2dFunction(torch.autograd.Function):
             grad_out, argmax, input, weight, origin[0], origin[1], padding_value
         )
 
-        return grad_in, grad_w, None
+        return grad_in, grad_w, None, None
 
 
 class Dilation2d(nn.Module):
