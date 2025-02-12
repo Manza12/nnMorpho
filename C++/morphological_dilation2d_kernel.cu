@@ -1,3 +1,8 @@
+#include <torch/extension.h>
+#include <vector>
+#include <limits>
+
+
 __global__ void morphological_dilation2d_backward_kernel(
     const float* __restrict__ grad_out, // [N, Cout, Hout, Wout]
     const int*  __restrict__ argmax,    // [N, Cout, Hout, Wout]
