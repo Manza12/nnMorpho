@@ -54,8 +54,8 @@ class MorphoMLP(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
         # Just like classical MLP, but use morphological layers.
-        self.fc1 = morpho_cuda.Morphological(in_dim, hidden_dim)
-        self.fc2 = morpho_cuda.Morphological(hidden_dim, out_dim)
+        self.fc1 = Morphological(in_dim, hidden_dim)
+        self.fc2 = Morphological(hidden_dim, out_dim)
 
     def forward(self, x):
         x = torch.relu(self.fc1(x))

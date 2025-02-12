@@ -36,7 +36,7 @@ def main():
     morpho = MorphoMLP(in_dim, hidden_dim, out_dim).to(device)
     opt_morpho = optim.SGD(morpho.parameters(), lr=lr)
 
-    for step in range(10):
+    for step in range(100):
         # Classical forward/backward
         out_cl = classical(x)
         loss_cl = (out_cl - target).pow(2).mean()
