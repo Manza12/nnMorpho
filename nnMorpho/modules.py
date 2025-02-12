@@ -1,6 +1,5 @@
 import torch
 from torch import nn, Tensor
-from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
 from typing import Optional, Union, Tuple
 
