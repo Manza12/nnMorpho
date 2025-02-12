@@ -7,14 +7,20 @@
 // Declarations from the .cu file
 std::vector<torch::Tensor> morphological_dilation2d_forward_cuda(
     torch::Tensor input,
-    torch::Tensor weight
+    torch::Tensor weight,
+    int padH,
+    int padW,
+    bool useNegInfPad
 );
 
 std::vector<torch::Tensor> morphological_dilation2d_backward_cuda(
     torch::Tensor grad_out,
     torch::Tensor argmax,
     torch::Tensor input,
-    torch::Tensor weight
+    torch::Tensor weight,
+    int padH,
+    int padW,
+    bool useNegInfPad
 );
 
 // -----------------------------------------------------------------------------
@@ -181,17 +187,19 @@ std::vector<torch::Tensor> morphological_dilation2d_backward_cpu(
 // Public entry points that dispatch CPU vs. CUDA.
 // -----------------------------------------------------------------------------
 
+
 std::vector<torch::Tensor> morphological_dilation2d_forward(
     torch::Tensor input,
-    torch::Tensor weight
+    torch::Tensor weight,
+    int padH,
+    int padW,
+    bool useNegInfPad
 ) {
     if (input.is_cuda()) {
-        // call CUDA
-        return morphological_dilation2d_forward_cuda(input, weight);
+        return morphological_dilation2d_forward_cuda(input, weight,
+                                                     padH, padW, useNegInfPad);
     } else {
-        // CPU fallback or error
-        throw std::runtime_error("Only CUDA is supported in this snippet.");
-        // return morphological_dilation2d_forward_cpu(input, weight);
+        throw std::runtime_error("Only CUDA is supported in this snippet (forward).");
     }
 }
 
@@ -199,13 +207,16 @@ std::vector<torch::Tensor> morphological_dilation2d_backward(
     torch::Tensor grad_out,
     torch::Tensor argmax,
     torch::Tensor input,
-    torch::Tensor weight
+    torch::Tensor weight,
+    int padH,
+    int padW,
+    bool useNegInfPad
 ) {
     if (grad_out.is_cuda()) {
-        return morphological_dilation2d_backward_cuda(grad_out, argmax, input, weight);
+        return morphological_dilation2d_backward_cuda(grad_out, argmax, input,
+                                                      weight, padH, padW, useNegInfPad);
     } else {
-        throw std::runtime_error("Only CUDA is supported in this snippet.");
-        // return morphological_dilation2d_backward_cpu(...);
+        throw std::runtime_error("Only CUDA is supported in this snippet (backward).");
     }
 }
 
