@@ -4,7 +4,7 @@ from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
 from typing import Optional, Union, Tuple
 
-# import morphological_dilation2d
+import morphological_dilation2d
 
 _type_to_pair = Union[int, Tuple[int, int]]
 
@@ -65,7 +65,7 @@ class Dilation2d(nn.Module):
         if origin is None:
             self.origin = (self.kernel_size[0] // 2, self.kernel_size[1] // 2)
         else:
-            self.origin = origin
+            self.origin = _pair(origin)
 
         self.padding_value = padding_value
 
