@@ -1,7 +1,21 @@
 #include <torch/extension.h>
 #include <vector>
+#include <stdexcept>
 #include <limits>
 #include <iostream>
+
+// Declarations from the .cu file
+std::vector<torch::Tensor> morphological_dilation2d_forward_cuda(
+    torch::Tensor input,
+    torch::Tensor weight
+);
+
+std::vector<torch::Tensor> morphological_dilation2d_backward_cuda(
+    torch::Tensor grad_out,
+    torch::Tensor argmax,
+    torch::Tensor input,
+    torch::Tensor weight
+);
 
 // -----------------------------------------------------------------------------
 // CPU fallback for 2D morphological dilation (forward + backward).
@@ -165,16 +179,20 @@ std::vector<torch::Tensor> morphological_dilation2d_backward_cpu(
 
 // -----------------------------------------------------------------------------
 // Public entry points that dispatch CPU vs. CUDA.
-// For now, we only have the CPU versions, so we call them directly.
-// Later, you can add "if (input.is_cuda()) { ... } else { ... }" logic.
 // -----------------------------------------------------------------------------
 
 std::vector<torch::Tensor> morphological_dilation2d_forward(
     torch::Tensor input,
     torch::Tensor weight
 ) {
-    // For now, just call CPU fallback
-    return morphological_dilation2d_forward_cpu(input, weight);
+    if (input.is_cuda()) {
+        // call CUDA
+        return morphological_dilation2d_forward_cuda(input, weight);
+    } else {
+        // CPU fallback or error
+        throw std::runtime_error("Only CUDA is supported in this snippet.");
+        // return morphological_dilation2d_forward_cpu(input, weight);
+    }
 }
 
 std::vector<torch::Tensor> morphological_dilation2d_backward(
@@ -183,18 +201,20 @@ std::vector<torch::Tensor> morphological_dilation2d_backward(
     torch::Tensor input,
     torch::Tensor weight
 ) {
-    // For now, just call CPU fallback
-    return morphological_dilation2d_backward_cpu(grad_out, argmax, input, weight);
+    if (grad_out.is_cuda()) {
+        return morphological_dilation2d_backward_cuda(grad_out, argmax, input, weight);
+    } else {
+        throw std::runtime_error("Only CUDA is supported in this snippet.");
+        // return morphological_dilation2d_backward_cpu(...);
+    }
 }
 
 // -----------------------------------------------------------------------------
 // PYBIND11 Module definition
 // -----------------------------------------------------------------------------
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("morphological_dilation2d_forward",
-          &morphological_dilation2d_forward,
-          "2D morphological dilation forward (CPU fallback)");
-    m.def("morphological_dilation2d_backward",
-          &morphological_dilation2d_backward,
-          "2D morphological dilation backward (CPU fallback)");
+    m.def("morphological_dilation2d_forward", &morphological_dilation2d_forward,
+          "2D morphological dilation forward (CUDA)");
+    m.def("morphological_dilation2d_backward", &morphological_dilation2d_backward,
+          "2D morphological dilation backward (CUDA)");
 }

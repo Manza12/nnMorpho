@@ -1,12 +1,15 @@
 from setuptools import setup
-from torch.utils.cpp_extension import BuildExtension, CppExtension
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
     name='morphological_dilation2d',
     ext_modules=[
-        CppExtension(
+        CUDAExtension(
             name='morphological_dilation2d',
-            sources=['morphological_dilation2d.cpp'],
+            sources=[
+                'morphological_dilation2d.cpp',
+                'morphological_dilation2d_kernel.cu'
+            ],
         ),
     ],
     cmdclass={

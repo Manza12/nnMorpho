@@ -1,65 +1,80 @@
-# modules.py
-import math
 import torch
 from torch import nn, Tensor
-from torch.nn import functional as F, init
-from torch.nn.parameter import Parameter
-from torch.nn.modules.utils import _pair
 from torch.nn.modules.conv import _ConvNd
+from torch.nn.modules.utils import _pair
 from typing import Optional, Union, Tuple
 
+import morphological_dilation2d
 
-# We'll define a new Dilation2d, based on how Conv2d is structured in PyTorch
+
+class Dilation2dFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, input: Tensor, weight: Tensor, bias: Optional[Tensor]):
+        """
+        input: [N, Cin, H, W]
+        weight: [Cout, Cin, Kh, Kw]
+        bias: [Cout] or None
+        Returns: output: [N, Cout, Hout, Wout]
+        """
+        # Call C++/CUDA forward
+        out, argmax = morphological_dilation2d.morphological_dilation2d_forward(input, weight)
+        # If bias is present, broadcast-add: bias[c] across spatial
+        if bias is not None:
+            out += bias.view(1, -1, 1, 1)
+
+        # Save for backward
+        ctx.save_for_backward(input, weight, bias, argmax)
+        return out
+
+    @staticmethod
+    def backward(ctx, grad_out: Tensor):
+        """
+        grad_out: [N, Cout, Hout, Wout]
+        Returns: (grad_input, grad_weight, grad_bias)
+        """
+        input, weight, bias, argmax = ctx.saved_tensors
+
+        # 1) morpho backward to get grad_in, grad_w
+        grad_in, grad_w = morphological_dilation2d.morphological_dilation2d_backward(
+            grad_out, argmax, input, weight
+        )
+
+        grad_bias = None
+        if bias is not None:
+            # bias is shape [Cout], so each channel c gets the sum of grad_out[:,c,:,:].
+            # This is simply a sum over N,Hout,Wout for each channel.
+            # shape of grad_out is [N, Cout, Hout, Wout].
+            grad_bias = grad_out.sum(dim=[0, 2, 3])  # sum over N,Hout,Wout
+
+        return grad_in, grad_w, grad_bias
+
+
 class Dilation2d(_ConvNd):
     r"""
     A 2D morphological dilation layer, analogous to nn.Conv2d but using dilation instead of convolution.
 
-    Args:
-        in_channels (int): Number of channels in the input image.
-        out_channels (int): Number of channels produced by the dilation.
-        kernel_size (int or tuple): Size of the structuring element (kernel).
-        stride (int or tuple, optional): Stride of the dilation. Default: 1
-        padding (int, tuple or str, optional): Padding on both sides of the input. Default: 0
-        dilation (int or tuple, optional): Spacing for the structuring element. Default: 1
-        groups (int, optional): Number of blocked connections. (Might not be fully relevant for morphological ops but included for consistency.) Default: 1
-        bias (bool, optional): If True, adds a learnable bias to the output. Default: True
-        padding_mode (str, optional): 'zeros', 'reflect', 'replicate', or 'circular'. Default: 'zeros'
-
-    Shape:
-        - Input: :math:`(N, C_{in}, H_{in}, W_{in})`
-        - Output: :math:`(N, C_{out}, H_{out}, W_{out})`
-
-    The morphological dilation operation (loosely) is:
-
-    .. math::
-        \text{out}(b, c, h, w)
-          = \max_{(dh, dw) \in \text{kernel}}
-            \bigl(\text{inp}(b, \_, h + dh, w + dw) + \text{weight}(\_, c, dh, dw)\bigr)
-          + \text{bias}(c)
-
-    For now, the actual CUDA code is not yet implemented—this class is a placeholder
-    for the future implementation.
-
+    Naive version:
+     - Ignores stride/padding/dilation/groups from the parent _ConvNd for now.
+     - Calls morphological_dilation2d (C++/CUDA) and adds bias if present.
     """
 
     def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Union[int, Tuple[int, int]],
-            stride: Union[int, Tuple[int, int]] = 1,
-            padding: Union[str, int, Tuple[int, int]] = 0,
-            dilation: Union[int, Tuple[int, int]] = 1,
-            groups: int = 1,
-            bias: bool = True,
-            padding_mode: str = "zeros",
-            device=None,
-            dtype=None,
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: Union[int, Tuple[int, int]],
+        stride: Union[int, Tuple[int, int]] = 1,
+        padding: Union[str, int, Tuple[int, int]] = 0,
+        dilation: Union[int, Tuple[int, int]] = 1,
+        groups: int = 1,
+        bias: bool = True,
+        padding_mode: str = "zeros",
+        device=None,
+        dtype=None,
     ) -> None:
         kernel_size_ = _pair(kernel_size)
         stride_ = _pair(stride)
         if isinstance(padding, str):
-            # e.g. 'same' or 'valid'
             padding_ = padding
         else:
             padding_ = _pair(padding)
@@ -73,7 +88,7 @@ class Dilation2d(_ConvNd):
             padding_,
             dilation_,
             False,  # transposed=False
-            _pair(0),  # output_padding = (0, 0)
+            _pair(0),  # output_padding=(0,0)
             groups,
             bias,
             padding_mode,
@@ -81,18 +96,19 @@ class Dilation2d(_ConvNd):
             dtype=dtype,
         )
 
+        # self.weight is created by _ConvNd with shape [out_channels, in_channels//groups, *kernel_size_]
+        # self.bias if bias=True => shape [out_channels]
+
     def _dilation_forward(
-            self, input: Tensor, weight: Tensor, bias: Optional[Tensor]
+        self, input: Tensor, weight: Tensor, bias: Optional[Tensor]
     ) -> Tensor:
         """
-        Placeholder for morphological dilation forward pass.
-        Eventually this is where you would call into a custom CUDA kernel.
+        Actually calls our custom autograd Function,
+        which calls the morphological_dilation2d extension.
         """
-        # For now, raise an error or return something trivial:
-        raise NotImplementedError(
-            "Dilation2d forward is not yet implemented. "
-            "This is just a placeholder wrapper."
-        )
+        return Dilation2dFunction.apply(input, weight, bias)
 
     def forward(self, input: Tensor) -> Tensor:
+        # For now, ignoring stride/padding/dilation logic in the naive approach,
+        # we just do a direct morphological dilation.
         return self._dilation_forward(input, self.weight, self.bias)
