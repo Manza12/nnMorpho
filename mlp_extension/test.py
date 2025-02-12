@@ -18,46 +18,43 @@ class ClassicalMLP(nn.Module):
 
 def main():
     device = "cuda"
-
-    # Random problem: input=16 dims, hidden=32, output=8 dims
-    B = 10
-    in_features = 16
+    B = 16           # batch size
+    in_features = 10
     hidden_dim = 32
-    out_features = 8
+    out_features = 6
+    lr = 1e-2
 
-    # Create random input & target
+    # Random input/target for a fake regression problem
     x = torch.randn(B, in_features, device=device)
     target = torch.randn(B, out_features, device=device)
 
-    # Classical
+    # Classical MLP
     classical_mlp = ClassicalMLP(in_features, hidden_dim, out_features).to(device)
-    classical_optim = optim.SGD(classical_mlp.parameters(), lr=1e-2)
+    classical_opt = optim.SGD(classical_mlp.parameters(), lr=lr)
 
-    # Custom
+    # Custom MLP
     custom_mlp = MLP(in_features, hidden_dim, out_features).to(device)
-    # Note: Because our custom kernel does not return param grads,
-    # PyTorch won't automatically compute them from this raw kernel.
-    # We'll still define an optimizer for demonstration:
-    params = [custom_mlp.weights1, custom_mlp.bias1,
-              custom_mlp.weights2, custom_mlp.bias2]
-    custom_optim = optim.SGD(params, lr=1e-2)
+    custom_opt = optim.SGD(custom_mlp.parameters(), lr=lr)
 
-    # Forward/backward for classical
-    out_classical = classical_mlp(x)
-    loss_classical = ((out_classical - target)**2).mean()
-    classical_optim.zero_grad()
-    loss_classical.backward()  # compute param grads
-    classical_optim.step()
+    # Train both for a few steps
+    for step in range(10):
+        # ---- Classical MLP ----
+        out_cl = classical_mlp(x)
+        loss_cl = (out_cl - target).pow(2).mean()
 
-    # Forward/backward for custom
-    out_custom = custom_mlp(x)
-    loss_custom = ((out_custom - target)**2).mean()
-    custom_optim.zero_grad()
-    loss_custom.backward()  # but param grads remain None with raw kernel
-    custom_optim.step()
+        classical_opt.zero_grad()
+        loss_cl.backward()
+        classical_opt.step()
 
-    print("Classical MLP loss =", loss_classical.item())
-    print("Custom MLP loss    =", loss_custom.item())
+        # ---- Custom MLP ----
+        out_cu = custom_mlp(x)
+        loss_cu = (out_cu - target).pow(2).mean()
+
+        custom_opt.zero_grad()
+        loss_cu.backward()
+        custom_opt.step()
+
+        print(f"[Step {step}] Classical Loss = {loss_cl.item():.4f}, Custom Loss = {loss_cu.item():.4f}")
 
 if __name__ == "__main__":
     main()

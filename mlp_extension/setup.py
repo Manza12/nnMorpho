@@ -6,13 +6,10 @@ setup(
     ext_modules=[
         CUDAExtension(
             name='mlp_cuda',
-            sources=[
-                'mlp_cuda.cpp',
-                'mlp_cuda_kernel.cu',
-            ],
-        )
+            sources=['mlp_cuda.cpp', 'mlp_cuda_kernel.cu'],
+        ),
     ],
     cmdclass={
         'build_ext': BuildExtension
-    }
+    },
 )

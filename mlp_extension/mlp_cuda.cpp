@@ -1,50 +1,60 @@
 #include <torch/extension.h>
 #include <vector>
 
-// ----------------------------------------------------------------------------
-// Declarations of the actual CUDA implementations (in mlp_cuda_kernel.cu):
-// ----------------------------------------------------------------------------
-torch::Tensor mlp_forward_cuda(
-    torch::Tensor input,     // [B, in_features]
-    torch::Tensor weights1,  // [in_features, hidden_dim]
-    torch::Tensor bias1,     // [hidden_dim]
-    torch::Tensor weights2,  // [hidden_dim, out_features]
-    torch::Tensor bias2      // [out_features]
+// Forward declarations of the real CUDA routines
+//   that handle the multi-layer forward/backward:
+std::vector<torch::Tensor> mlp_forward_all_cuda(
+    torch::Tensor input,
+    torch::Tensor w1,
+    torch::Tensor b1,
+    torch::Tensor w2,
+    torch::Tensor b2
 );
 
-torch::Tensor mlp_backward_cuda(
-    torch::Tensor grad_output,  // [B, out_features]
-    torch::Tensor input,        // [B, in_features]
-    torch::Tensor weights1,     // [in_features, hidden_dim]
-    torch::Tensor weights2      // [hidden_dim, out_features]
+std::vector<torch::Tensor> mlp_backward_all_cuda(
+    torch::Tensor grad_out,  // grad wrt final output
+    torch::Tensor input,
+    torch::Tensor out1,
+    torch::Tensor out2,
+    torch::Tensor w1,
+    torch::Tensor b1,
+    torch::Tensor w2,
+    torch::Tensor b2
 );
 
-// ----------------------------------------------------------------------------
-// C++ "wrapper" functions that call the CUDA code
-// ----------------------------------------------------------------------------
-torch::Tensor mlp_forward(
+// -----------------------------------------------------------------------------
+// C++ "wrapper" functions that call the CUDA routines
+// -----------------------------------------------------------------------------
+std::vector<torch::Tensor> mlp_forward_all(
     torch::Tensor input,
-    torch::Tensor weights1,
-    torch::Tensor bias1,
-    torch::Tensor weights2,
-    torch::Tensor bias2
+    torch::Tensor w1,
+    torch::Tensor b1,
+    torch::Tensor w2,
+    torch::Tensor b2
 ) {
-    return mlp_forward_cuda(input, weights1, bias1, weights2, bias2);
+    return mlp_forward_all_cuda(input, w1, b1, w2, b2);
 }
 
-torch::Tensor mlp_backward(
-    torch::Tensor grad_output,
+std::vector<torch::Tensor> mlp_backward_all(
+    torch::Tensor grad_out,
     torch::Tensor input,
-    torch::Tensor weights1,
-    torch::Tensor weights2
+    torch::Tensor out1,
+    torch::Tensor out2,
+    torch::Tensor w1,
+    torch::Tensor b1,
+    torch::Tensor w2,
+    torch::Tensor b2
 ) {
-    return mlp_backward_cuda(grad_output, input, weights1, weights2);
+    return mlp_backward_all_cuda(grad_out, input, out1, out2, w1, b1, w2, b2);
 }
 
-// ----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // PyBind module definition
-// ----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("forward", &mlp_forward, "MLP forward pass (CUDA)");
-    m.def("backward", &mlp_backward, "MLP backward pass (CUDA, grad wrt input)");
+    // forward_all(...) => returns [out1, out2]
+    m.def("forward_all", &mlp_forward_all, "MLP forward pass (CUDA) - returns 2 layers outputs");
+
+    // backward_all(...) => returns [grad_x, grad_w1, grad_b1, grad_w2, grad_b2]
+    m.def("backward_all", &mlp_backward_all, "MLP backward pass (CUDA) - full param grads");
 }

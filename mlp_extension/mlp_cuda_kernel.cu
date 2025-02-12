@@ -3,115 +3,93 @@
 #include <cuda_runtime.h>
 
 /*
- * -----------------------
- * 1) FORWARD KERNEL
- *    linear_forward_kernel does: out[row,col] = ReLU( sum(...) )
- * -----------------------
- */
-__global__ void linear_forward_kernel(const float* input,
-                                      const float* weight,
-                                      const float* bias,
-                                      float* output,
-                                      int batch_size,
-                                      int in_features,
-                                      int out_features) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < batch_size * out_features) {
-        int row = i / out_features;  // which batch
-        int col = i % out_features;  // which output feature
-        float val = bias[col];
-        for (int j = 0; j < in_features; j++) {
-            val += input[row * in_features + j] * weight[j * out_features + col];
-        }
-        // ReLU
-        if (val < 0.0f) val = 0.0f;
-        output[i] = val;
-    }
+  forward_all:
+
+  We do a 2-layer MLP:
+    z1 = (x mm w1) + b1
+    out1 = relu(z1)
+    z2 = (out1 mm w2) + b2
+    out2 = relu(z2)
+
+  Return both out1 and out2 so we can use them in backward.
+*/
+std::vector<torch::Tensor> mlp_forward_all_cuda(
+    torch::Tensor input,  // shape [B, in_features]
+    torch::Tensor w1,     // [in_features, hidden_dim]
+    torch::Tensor b1,     // [hidden_dim]
+    torch::Tensor w2,     // [hidden_dim, out_features]
+    torch::Tensor b2      // [out_features]
+) {
+    auto z1 = torch::addmm(b1, input, w1);  // z1 = x*w1 + b1
+    auto out1 = torch::relu(z1);
+
+    auto z2 = torch::addmm(b2, out1, w2);   // z2 = out1*w2 + b2
+    auto out2 = torch::relu(z2);
+
+    // Return both intermediate (out1) and final (out2)
+    return {out1, out2};
 }
 
 /*
- * -----------------------
- * 2) Forward pass wrapper
- * -----------------------
- */
-torch::Tensor mlp_forward_cuda(
-    torch::Tensor input,
-    torch::Tensor weights1,
-    torch::Tensor bias1,
-    torch::Tensor weights2,
-    torch::Tensor bias2
+  backward_all:
+
+  Suppose the final output was out2.
+  We have grad_out = dL/d(out2).
+  We compute:
+
+   (1) dZ2 = grad_out * ReLU'(z2)
+            but we only have out2 => mask = out2>0 => dZ2 = grad_out*(out2>0)
+
+   (2) grad_w2 = out1^T mm dZ2
+   (3) grad_b2 = sum(dZ2 across batch)
+   (4) grad_out1 = dZ2 mm w2^T
+
+   (5) dZ1 = grad_out1 * ReLU'(z1)
+            but we only have out1 => dZ1 = grad_out1*(out1>0)
+
+   (6) grad_w1 = x^T mm dZ1
+   (7) grad_b1 = sum(dZ1 across batch)
+   (8) grad_x  = dZ1 mm w1^T
+
+  Return (grad_x, grad_w1, grad_b1, grad_w2, grad_b2).
+  All the math can be done with standard PyTorch "ATen" ops in C++.
+*/
+std::vector<torch::Tensor> mlp_backward_all_cuda(
+    torch::Tensor grad_out,  // [B, out_features]
+    torch::Tensor input,     // [B, in_features]
+    torch::Tensor out1,      // [B, hidden_dim]
+    torch::Tensor out2,      // [B, out_features]
+    torch::Tensor w1,        // [in_features, hidden_dim]
+    torch::Tensor b1,        // [hidden_dim]   (unused except for shape)
+    torch::Tensor w2,        // [hidden_dim, out_features]
+    torch::Tensor b2         // [out_features] (unused except for shape)
 ) {
-    // input  shape: [B, in_features]
-    // weights1 shape: [in_features, hidden_dim]
-    // bias1   shape: [hidden_dim]
-    // weights2 shape: [hidden_dim, out_features]
-    // bias2   shape: [out_features]
+    // ----- LAYER 2 backprop -----
 
-    auto B = input.size(0);
-    auto in_features = input.size(1);
-    auto hidden_dim = weights1.size(1);
-    auto out_features = weights2.size(1);
+    // mask for ReLU on out2
+    auto mask2 = out2 > 0;                            // bool tensor
+    auto dZ2 = grad_out * mask2.to(grad_out.dtype()); // [B, out_features]
 
-    // Allocate output of first layer + second layer
-    auto output1 = torch::empty({B, hidden_dim}, input.options());
-    auto output2 = torch::empty({B, out_features}, input.options());
+    // gradient wrt weights2, bias2
+    auto grad_w2 = out1.transpose(0,1).mm(dZ2);  // [hidden_dim, out_features]
+    auto grad_b2 = dZ2.sum({0});                 // [out_features]
 
-    // Launch first layer
-    int threads = 256;
-    int total1 = B * hidden_dim;
-    int blocks = (total1 + threads - 1) / threads;
+    // gradient wrt out1
+    auto grad_out1 = dZ2.mm(w2.transpose(0,1));  // [B, hidden_dim]
 
-    linear_forward_kernel<<<blocks, threads>>>(
-        input.data_ptr<float>(),
-        weights1.data_ptr<float>(),
-        bias1.data_ptr<float>(),
-        output1.data_ptr<float>(),
-        B,
-        in_features,
-        hidden_dim
-    );
+    // ----- LAYER 1 backprop -----
 
-    // Launch second layer
-    int total2 = B * out_features;
-    blocks = (total2 + threads - 1) / threads;
+    // mask for ReLU on out1
+    auto mask1 = out1 > 0;
+    auto dZ1 = grad_out1 * mask1.to(grad_out1.dtype()); // [B, hidden_dim]
 
-    linear_forward_kernel<<<blocks, threads>>>(
-        output1.data_ptr<float>(),
-        weights2.data_ptr<float>(),
-        bias2.data_ptr<float>(),
-        output2.data_ptr<float>(),
-        B,
-        hidden_dim,
-        out_features
-    );
+    // gradient wrt weights1, bias1
+    auto grad_w1 = input.transpose(0,1).mm(dZ1); // [in_features, hidden_dim]
+    auto grad_b1 = dZ1.sum({0});                 // [hidden_dim]
 
-    // Return final output (shape [B, out_features])
-    return output2;
-}
+    // gradient wrt input
+    auto grad_x = dZ1.mm(w1.transpose(0,1));     // [B, in_features]
 
-/*
- * -------------------------------------------------------
- * 3) BACKWARD PASS: compute gradient wrt input only
- *    We do:
- *      grad_input = grad_output x weights2^T x weights1^T
- *    (Ignoring ReLU's partial derivative for brevity.)
- * -------------------------------------------------------
- */
-torch::Tensor mlp_backward_cuda(
-    torch::Tensor grad_output,  // [B, out_features]
-    torch::Tensor input,        // [B, in_features]
-    torch::Tensor weights1,     // [in_features, hidden_dim]
-    torch::Tensor weights2      // [hidden_dim, out_features]
-) {
-    // We'll do a naive matrix multiply chain in C++/CUDA with at::mm:
-    //   grad_x1 = grad_output x weights2^T
-    //   grad_input = grad_x1 x weights1^T
-    // (Skipping ReLU masks for simplicity.)
-
-    // (1) grad_x1 = grad_output x weights2^T
-    auto grad_x1 = torch::mm(grad_output, weights2.transpose(0,1));  // [B, hidden_dim]
-
-    // (2) grad_input = grad_x1 x weights1^T
-    auto grad_input = torch::mm(grad_x1, weights1.transpose(0,1));   // [B, in_features]
-    return grad_input;
+    // Return all in correct order
+    return {grad_x, grad_w1, grad_b1, grad_w2, grad_b2};
 }
