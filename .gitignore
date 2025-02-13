@@ -2,6 +2,7 @@
 .idea
 nnMorpho/.idea
 nnMorpho/__pycache__
+sandbox
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
