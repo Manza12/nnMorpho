@@ -2,7 +2,7 @@
 .idea
 nnMorpho/.idea
 nnMorpho/__pycache__
-sandbox
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
